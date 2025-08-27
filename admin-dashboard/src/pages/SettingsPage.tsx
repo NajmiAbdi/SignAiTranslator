@@ -105,9 +105,9 @@ export default function SettingsPage() {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 min-h-screen">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
           <p className="text-gray-600">Configure system preferences and security options</p>
@@ -326,13 +326,13 @@ export default function SettingsPage() {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               AI Service API Key
             </label>
-            <div className="flex">
+            <div className="flex flex-col sm:flex-row gap-2">
               <input
                 type="password"
                 placeholder="••••••••••••••••••••••••••••••••"
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-md sm:rounded-l-md sm:rounded-r-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               />
-              <button className="px-4 py-2 bg-gray-100 border border-l-0 border-gray-300 rounded-r-md hover:bg-gray-200 transition-colors">
+              <button className="px-4 py-2 bg-gray-100 border border-gray-300 rounded-md sm:border-l-0 sm:rounded-l-none sm:rounded-r-md hover:bg-gray-200 transition-colors">
                 Update
               </button>
             </div>
@@ -342,13 +342,13 @@ export default function SettingsPage() {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Speech Service API Key
             </label>
-            <div className="flex">
+            <div className="flex flex-col sm:flex-row gap-2">
               <input
                 type="password"
                 placeholder="••••••••••••••••••••••••••••••••"
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-md sm:rounded-l-md sm:rounded-r-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               />
-              <button className="px-4 py-2 bg-gray-100 border border-l-0 border-gray-300 rounded-r-md hover:bg-gray-200 transition-colors">
+              <button className="px-4 py-2 bg-gray-100 border border-gray-300 rounded-md sm:border-l-0 sm:rounded-l-none sm:rounded-r-md hover:bg-gray-200 transition-colors">
                 Update
               </button>
             </div>

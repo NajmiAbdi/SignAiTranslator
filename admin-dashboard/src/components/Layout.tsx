@@ -77,7 +77,7 @@ export default function Layout({ children }: LayoutProps) {
         <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200">
           <div className="flex items-center">
             <Activity className="h-8 w-8 text-primary-600" />
-            <span className="ml-2 text-lg font-semibold text-gray-900">Admin Panel</span>
+            <span className="ml-2 text-lg font-semibold text-gray-900 hidden sm:block">Admin Panel</span>
           </div>
           <button
             onClick={() => setSidebarOpen(false)}
@@ -107,7 +107,7 @@ export default function Layout({ children }: LayoutProps) {
       {/* Main content */}
       <div className="lg:pl-64">
         {/* Header */}
-        <header className="bg-white shadow-sm border-b border-gray-200">
+        <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-30">
           <div className="flex items-center justify-between px-4 py-4">
             <button
               onClick={() => setSidebarOpen(true)}
@@ -117,7 +117,7 @@ export default function Layout({ children }: LayoutProps) {
             </button>
             
             <div className="flex items-center space-x-4">
-              <div className="text-sm text-gray-500">
+              <div className="text-sm text-gray-500 hidden sm:block">
                 Sign Language Translator Admin
               </div>
             </div>
@@ -125,7 +125,7 @@ export default function Layout({ children }: LayoutProps) {
         </header>
 
         {/* Page content */}
-        <main className="p-6">
+        <main className="p-4 lg:p-6">
           <div className="fade-in">
             {children}
           </div>

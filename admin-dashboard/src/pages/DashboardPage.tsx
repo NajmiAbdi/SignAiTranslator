@@ -113,9 +113,9 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 min-h-screen">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
           <p className="text-gray-600">Overview of your sign language translator system</p>
@@ -127,7 +127,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
         <StatCard
           title="Total Users"
           value={stats?.totalUsers || 0}
@@ -158,11 +158,11 @@ export default function DashboardPage() {
       </div>
 
       {/* Charts and Activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 lg:gap-6">
         {/* Usage Chart */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+        <div className="bg-white p-4 lg:p-6 rounded-xl shadow-sm border border-gray-100">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Usage Trends</h3>
-          <div className="h-64 flex items-center justify-center bg-gray-50 rounded-lg">
+          <div className="h-48 lg:h-64 flex items-center justify-center bg-gray-50 rounded-lg">
             <div className="text-center">
               <Activity className="h-12 w-12 text-gray-400 mx-auto mb-2" />
               <p className="text-gray-500">Chart visualization will be implemented</p>
@@ -171,7 +171,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Recent Activity */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+        <div className="bg-white p-4 lg:p-6 rounded-xl shadow-sm border border-gray-100">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h3>
           <div className="space-y-1">
             <ActivityItem
@@ -204,9 +204,9 @@ export default function DashboardPage() {
       </div>
 
       {/* System Status */}
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+      <div className="bg-white p-4 lg:p-6 rounded-xl shadow-sm border border-gray-100">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">System Status</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div className="flex items-center">
             <div className="w-3 h-3 bg-green-400 rounded-full mr-3"></div>
             <div>

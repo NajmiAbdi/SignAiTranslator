@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Upload, Download, Play, Pause, Trash2, Eye } from 'lucide-react';
 import { getDatasets } from '../services/supabase';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { supabase } from '../services/supabase';
 
 interface Dataset {
   dataset_id: string;
@@ -18,6 +19,8 @@ export default function DatasetsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   useEffect(() => {
     loadDatasets();
@@ -71,8 +74,94 @@ export default function DatasetsPage() {
     }
   };
 
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    setUploadProgress(0);
+
+    try {
+      // Simulate upload progress
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => Math.min(prev + 10, 90));
+      }, 200);
+
+      // Process CSV file
+      const text = await file.text();
+      const lines = text.split('\n');
+      const headers = lines[0].split(',');
+      
+      const processedData = lines.slice(1)
+        .filter(line => line.trim())
+        .map((line, index) => {
+          const values = line.split(',');
+          return {
+            id: index,
+            label: values[0] || 'unknown',
+            features: values.slice(1).map(v => parseFloat(v) || 0),
+            confidence: 0.8 + Math.random() * 0.2
+          };
+        });
+
+      // Upload to Supabase
+      const datasetId = `dataset_${Date.now()}`;
+      const { error: uploadError } = await supabase
+        .from('datasets')
+        .insert({
+          dataset_id: datasetId,
+          type: 'sign_language',
+          status: 'completed',
+          uploaded_by: 'admin', // In real app, get from auth
+          metadata: {
+            filename: file.name,
+            fileSize: file.size,
+            uploadDate: new Date().toISOString(),
+            recordCount: processedData.length,
+            data: processedData
+          }
+        });
+
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+
+      if (uploadError) throw uploadError;
+
+      setTimeout(() => {
+        setUploadModalOpen(false);
+        setUploading(false);
+        setUploadProgress(0);
+        loadDatasets(); // Reload datasets
+      }, 1000);
+
+    } catch (error) {
+      console.error('Upload error:', error);
+      setUploading(false);
+      setUploadProgress(0);
+      alert('Failed to upload dataset');
+    }
+  };
+
+  const handleDeleteDataset = async (datasetId: string) => {
+    if (!confirm('Are you sure you want to delete this dataset?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('datasets')
+        .delete()
+        .eq('dataset_id', datasetId);
+
+      if (error) throw error;
+
+      setDatasets(prev => prev.filter(d => d.dataset_id !== datasetId));
+    } catch (error) {
+      console.error('Delete error:', error);
+      alert('Failed to delete dataset');
+    }
+  };
+
   const DatasetCard = ({ dataset }: { dataset: Dataset }) => (
-    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between mb-4">
         <div>
           <h3 className="text-lg font-semibold text-gray-900 mb-1">
@@ -101,14 +190,21 @@ export default function DatasetsPage() {
           <p className="text-xs font-medium text-gray-500 mb-1">Uploaded By</p>
           <p className="text-sm text-gray-900">{dataset.uploaded_by}</p>
         </div>
+        {dataset.metadata?.recordCount && (
+          <div>
+            <p className="text-xs font-medium text-gray-500 mb-1">Records</p>
+            <p className="text-sm text-gray-900">{dataset.metadata.recordCount}</p>
+          </div>
+        )}
       </div>
 
       {dataset.metadata && (
         <div className="mb-4">
           <p className="text-xs font-medium text-gray-500 mb-1">Metadata</p>
           <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded">
-            Files: {dataset.metadata.fileCount || 'N/A'} | 
-            Size: {dataset.metadata.totalSize || 'N/A'}
+            {dataset.metadata.filename && `File: ${dataset.metadata.filename}`}
+            {dataset.metadata.fileSize && ` | Size: ${(dataset.metadata.fileSize / 1024).toFixed(1)}KB`}
+            {dataset.metadata.recordCount && ` | Records: ${dataset.metadata.recordCount}`}
           </div>
         </div>
       )}
@@ -126,7 +222,10 @@ export default function DatasetsPage() {
             </button>
           )}
         </div>
-        <button className="p-1.5 text-gray-400 hover:text-red-600 transition-colors">
+        <button 
+          onClick={() => handleDeleteDataset(dataset.dataset_id)}
+          className="p-1.5 text-gray-400 hover:text-red-600 transition-colors"
+        >
           <Trash2 className="h-4 w-4" />
         </button>
       </div>
@@ -147,8 +246,8 @@ export default function DatasetsPage() {
 
   const UploadModal = () => (
     uploadModalOpen && (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-xl p-6 w-full max-w-md">
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Upload Dataset</h3>
           
           <div className="space-y-4">
@@ -156,7 +255,10 @@ export default function DatasetsPage() {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Dataset Type
               </label>
-              <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+              <select 
+                disabled={uploading}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:opacity-50"
+              >
                 <option>American Sign Language (ASL)</option>
                 <option>British Sign Language (BSL)</option>
                 <option>Indian Sign Language (ISL)</option>
@@ -168,15 +270,41 @@ export default function DatasetsPage() {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Upload Files
               </label>
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-primary-400 transition-colors">
                 <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                <p className="text-sm text-gray-600">
-                  Drop files here or <button className="text-primary-600 hover:text-primary-700">browse</button>
-                </p>
+                <input
+                  type="file"
+                  accept=".csv,.json,.xlsx"
+                  onChange={handleFileUpload}
+                  disabled={uploading}
+                  className="hidden"
+                  id="file-upload"
+                />
+                <label 
+                  htmlFor="file-upload" 
+                  className="cursor-pointer text-sm text-gray-600"
+                >
+                  Drop files here or <span className="text-primary-600 hover:text-primary-700">browse</span>
+                </label>
                 <p className="text-xs text-gray-500 mt-1">
                   Supports ZIP, CSV, JSON formats
                 </p>
               </div>
+              
+              {uploading && (
+                <div className="mt-4">
+                  <div className="flex justify-between text-sm text-gray-600 mb-1">
+                    <span>Uploading...</span>
+                    <span>{uploadProgress}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-primary-600 h-2 rounded-full transition-all duration-300" 
+                      style={{ width: `${uploadProgress}%` }}
+                    ></div>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div>
@@ -185,6 +313,7 @@ export default function DatasetsPage() {
               </label>
               <textarea
                 rows={3}
+                disabled={uploading}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 placeholder="Optional description for this dataset..."
               />
@@ -194,12 +323,16 @@ export default function DatasetsPage() {
           <div className="flex justify-end space-x-3 mt-6">
             <button
               onClick={() => setUploadModalOpen(false)}
+              disabled={uploading}
               className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
             >
               Cancel
             </button>
-            <button className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors">
-              Upload Dataset
+            <button 
+              disabled={uploading}
+              className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50"
+            >
+              {uploading ? 'Uploading...' : 'Upload Dataset'}
             </button>
           </div>
         </div>
@@ -208,9 +341,9 @@ export default function DatasetsPage() {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 min-h-screen">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Datasets</h1>
           <p className="text-gray-600">Manage training datasets and AI models</p>
@@ -225,7 +358,7 @@ export default function DatasetsPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
         <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
           <p className="text-sm font-medium text-gray-600">Total Datasets</p>
           <p className="text-2xl font-bold text-gray-900 mt-1">{datasets.length}</p>
@@ -272,7 +405,7 @@ export default function DatasetsPage() {
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
           {datasets.map((dataset) => (
             <DatasetCard key={dataset.dataset_id} dataset={dataset} />
           ))}

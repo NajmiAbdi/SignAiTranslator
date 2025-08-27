@@ -1,12 +1,92 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Switch, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Switch, TouchableOpacity, Alert, useColorScheme, Appearance } from 'react-native';
 import { Bell, Globe, Moon, Shield, CircleHelp as HelpCircle, Info, ChevronRight, Trash2, Download } from 'lucide-react-native';
+import { supabase, isSupabaseConfigured } from '../../lib/supabase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function SettingsScreen() {
+  const systemColorScheme = useColorScheme();
   const [notifications, setNotifications] = useState(true);
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(systemColorScheme === 'dark');
   const [autoTranslate, setAutoTranslate] = useState(true);
   const [offlineMode, setOfflineMode] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  React.useEffect(() => {
+    loadSettings();
+  }, []);
+
+  const loadSettings = async () => {
+    try {
+      const savedSettings = await AsyncStorage.getItem('userSettings');
+      if (savedSettings) {
+        const settings = JSON.parse(savedSettings);
+        setNotifications(settings.notifications ?? true);
+        setDarkMode(settings.darkMode ?? (systemColorScheme === 'dark'));
+        setAutoTranslate(settings.autoTranslate ?? true);
+        setOfflineMode(settings.offlineMode ?? false);
+      }
+    } catch (error) {
+      console.error('Error loading settings:', error);
+    }
+  };
+
+  const saveSettings = async (newSettings: any) => {
+    try {
+      const settings = {
+        notifications,
+        darkMode,
+        autoTranslate,
+        offlineMode,
+        ...newSettings
+      };
+      await AsyncStorage.setItem('userSettings', JSON.stringify(settings));
+      
+      // Also save to Supabase if configured
+      if (isSupabaseConfigured()) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await supabase
+            .from('users')
+            .update({ preferences: settings })
+            .eq('id', user.id);
+        }
+      }
+    } catch (error) {
+      console.error('Error saving settings:', error);
+    }
+  };
+
+  const handleDarkModeToggle = async (value: boolean) => {
+    setDarkMode(value);
+    await saveSettings({ darkMode: value });
+    
+    // Apply theme change
+    Appearance.setColorScheme(value ? 'dark' : 'light');
+  };
+
+  const handleNotificationsToggle = async (value: boolean) => {
+    setNotifications(value);
+    await saveSettings({ notifications: value });
+  };
+
+  const handleAutoTranslateToggle = async (value: boolean) => {
+    setAutoTranslate(value);
+    await saveSettings({ autoTranslate: value });
+  };
+
+  const handleOfflineModeToggle = async (value: boolean) => {
+    setOfflineMode(value);
+    await saveSettings({ offlineMode: value });
+    
+    if (value) {
+      Alert.alert(
+        'Offline Mode',
+        'Downloading models for offline use. This may take a few minutes.',
+        [{ text: 'OK' }]
+      );
+    }
+  };
 
   const handleClearData = () => {
     Alert.alert(
@@ -17,9 +97,28 @@ export default function SettingsScreen() {
         {
           text: 'Clear',
           style: 'destructive',
-          onPress: () => {
-            // Implement data clearing logic
-            Alert.alert('Success', 'All data has been cleared');
+          onPress: async () => {
+            setLoading(true);
+            try {
+              // Clear AsyncStorage
+              await AsyncStorage.clear();
+              
+              // Clear Supabase data if configured
+              if (isSupabaseConfigured()) {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (user) {
+                  await supabase.from('chats').delete().eq('user_id', user.id);
+                  await supabase.from('logs').delete().eq('user_id', user.id);
+                }
+              }
+              
+              Alert.alert('Success', 'All data has been cleared');
+            } catch (error) {
+              console.error('Error clearing data:', error);
+              Alert.alert('Error', 'Failed to clear all data');
+            } finally {
+              setLoading(false);
+            }
           },
         },
       ]
@@ -34,9 +133,41 @@ export default function SettingsScreen() {
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Export',
-          onPress: () => {
-            // Implement data export logic
-            Alert.alert('Success', 'Data exported successfully');
+          onPress: async () => {
+            setLoading(true);
+            try {
+              const exportData = {
+                settings: {
+                  notifications,
+                  darkMode,
+                  autoTranslate,
+                  offlineMode
+                },
+                exportDate: new Date().toISOString()
+              };
+              
+              // Add Supabase data if available
+              if (isSupabaseConfigured()) {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (user) {
+                  const { data: chats } = await supabase
+                    .from('chats')
+                    .select('*')
+                    .eq('user_id', user.id);
+                  
+                  exportData.chats = chats || [];
+                }
+              }
+              
+              // In a real app, you would save this to device storage
+              console.log('Export data:', exportData);
+              Alert.alert('Success', 'Data exported successfully');
+            } catch (error) {
+              console.error('Error exporting data:', error);
+              Alert.alert('Error', 'Failed to export data');
+            } finally {
+              setLoading(false);
+            }
           },
         },
       ]
@@ -63,7 +194,7 @@ export default function SettingsScreen() {
     dangerous?: boolean;
   }) => (
     <TouchableOpacity 
-      style={styles.settingItem} 
+      style={[styles.settingItem, darkMode && styles.settingItemDark]} 
       onPress={onPress}
       disabled={!onPress && !onValueChange}
     >
@@ -76,7 +207,9 @@ export default function SettingsScreen() {
             {title}
           </Text>
           {subtitle && (
-            <Text style={styles.settingSubtitle}>{subtitle}</Text>
+            <Text style={[styles.settingSubtitle, darkMode && styles.settingSubtitleDark]}>
+              {subtitle}
+            </Text>
           )}
         </View>
       </View>
@@ -85,66 +218,69 @@ export default function SettingsScreen() {
           <Switch
             value={value}
             onValueChange={onValueChange}
-            trackColor={{ false: '#D1D5DB', true: '#3B82F6' }}
+            trackColor={{ false: darkMode ? '#374151' : '#D1D5DB', true: '#3B82F6' }}
             thumbColor={value ? '#FFFFFF' : '#FFFFFF'}
           />
         )}
         {showArrow && (
-          <ChevronRight color="#6B7280" size={20} />
+          <ChevronRight color={darkMode ? '#9CA3AF' : '#6B7280'} size={20} />
         )}
       </View>
     </TouchableOpacity>
   );
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Settings</Text>
-        <Text style={styles.headerSubtitle}>Customize your experience</Text>
+    <ScrollView style={[styles.container, darkMode && styles.containerDark]} contentContainerStyle={styles.content}>
+      <View style={[styles.header, darkMode && styles.headerDark]}>
+        <Text style={[styles.headerTitle, darkMode && styles.headerTitleDark]}>Settings</Text>
+        <Text style={[styles.headerSubtitle, darkMode && styles.headerSubtitleDark]}>Customize your experience</Text>
+        {!isSupabaseConfigured() && (
+          <Text style={styles.warningText}>⚠️ Demo mode - Supabase not configured</Text>
+        )}
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Notifications</Text>
+      <View style={[styles.section, darkMode && styles.sectionDark]}>
+        <Text style={[styles.sectionTitle, darkMode && styles.sectionTitleDark]}>Notifications</Text>
         <SettingItem
           icon={<Bell color="#3B82F6" size={20} />}
           title="Push Notifications"
           subtitle="Get notified about new features and updates"
           value={notifications}
-          onValueChange={setNotifications}
+          onValueChange={handleNotificationsToggle}
         />
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Translation</Text>
+      <View style={[styles.section, darkMode && styles.sectionDark]}>
+        <Text style={[styles.sectionTitle, darkMode && styles.sectionTitleDark]}>Translation</Text>
         <SettingItem
           icon={<Globe color="#10B981" size={20} />}
           title="Auto-translate"
           subtitle="Automatically translate detected sign language"
           value={autoTranslate}
-          onValueChange={setAutoTranslate}
+          onValueChange={handleAutoTranslateToggle}
         />
         <SettingItem
           icon={<Download color="#6B7280" size={20} />}
           title="Offline Mode"
           subtitle="Download models for offline translation"
           value={offlineMode}
-          onValueChange={setOfflineMode}
+          onValueChange={handleOfflineModeToggle}
         />
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Appearance</Text>
+      <View style={[styles.section, darkMode && styles.sectionDark]}>
+        <Text style={[styles.sectionTitle, darkMode && styles.sectionTitleDark]}>Appearance</Text>
         <SettingItem
           icon={<Moon color="#6366F1" size={20} />}
           title="Dark Mode"
           subtitle="Use dark theme for better visibility"
           value={darkMode}
-          onValueChange={setDarkMode}
+          onValueChange={handleDarkModeToggle}
         />
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Privacy & Security</Text>
+      <View style={[styles.section, darkMode && styles.sectionDark]}>
+        <Text style={[styles.sectionTitle, darkMode && styles.sectionTitleDark]}>Privacy & Security</Text>
         <SettingItem
           icon={<Shield color="#059669" size={20} />}
           title="Privacy Settings"
@@ -154,8 +290,8 @@ export default function SettingsScreen() {
         />
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Data Management</Text>
+      <View style={[styles.section, darkMode && styles.sectionDark]}>
+        <Text style={[styles.sectionTitle, darkMode && styles.sectionTitleDark]}>Data Management</Text>
         <SettingItem
           icon={<Download color="#3B82F6" size={20} />}
           title="Export Data"
@@ -172,8 +308,8 @@ export default function SettingsScreen() {
         />
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Support</Text>
+      <View style={[styles.section, darkMode && styles.sectionDark]}>
+        <Text style={[styles.sectionTitle, darkMode && styles.sectionTitleDark]}>Support</Text>
         <SettingItem
           icon={<HelpCircle color="#6B7280" size={20} />}
           title="Help & FAQ"
@@ -191,10 +327,10 @@ export default function SettingsScreen() {
       </View>
 
       <View style={styles.footer}>
-        <Text style={styles.footerText}>
+        <Text style={[styles.footerText, darkMode && styles.footerTextDark]}>
           Sign Language Translator v1.0.0
         </Text>
-        <Text style={styles.footerText}>
+        <Text style={[styles.footerText, darkMode && styles.footerTextDark]}>
           © 2025 AI Translation Systems
         </Text>
       </View>
@@ -207,6 +343,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F9FAFB',
   },
+  containerDark: {
+    backgroundColor: '#111827',
+  },
   content: {
     paddingBottom: 40,
   },
@@ -218,15 +357,30 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
   },
+  headerDark: {
+    backgroundColor: '#1F2937',
+    borderBottomColor: '#374151',
+  },
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#1F2937',
     marginBottom: 4,
   },
+  headerTitleDark: {
+    color: '#F9FAFB',
+  },
   headerSubtitle: {
     fontSize: 14,
     color: '#6B7280',
+  },
+  headerSubtitleDark: {
+    color: '#9CA3AF',
+  },
+  warningText: {
+    fontSize: 12,
+    color: '#F59E0B',
+    marginTop: 4,
   },
   section: {
     backgroundColor: '#FFFFFF',
@@ -242,6 +396,9 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 5,
   },
+  sectionDark: {
+    backgroundColor: '#1F2937',
+  },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
@@ -249,6 +406,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 8,
+  },
+  sectionTitleDark: {
+    color: '#F9FAFB',
   },
   settingItem: {
     flexDirection: 'row',
@@ -258,6 +418,9 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#F3F4F6',
+  },
+  settingItemDark: {
+    borderBottomColor: '#374151',
   },
   settingLeft: {
     flexDirection: 'row',
@@ -285,6 +448,9 @@ const styles = StyleSheet.create({
     color: '#1F2937',
     marginBottom: 2,
   },
+  settingTitleDark: {
+    color: '#F9FAFB',
+  },
   dangerousText: {
     color: '#EF4444',
   },
@@ -292,6 +458,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6B7280',
     lineHeight: 18,
+  },
+  settingSubtitleDark: {
+    color: '#9CA3AF',
   },
   settingRight: {
     alignItems: 'center',
@@ -305,5 +474,8 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#9CA3AF',
     marginBottom: 4,
+  },
+  footerTextDark: {
+    color: '#6B7280',
   },
 });

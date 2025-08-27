@@ -102,9 +102,9 @@ export default function UsersPage() {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 min-h-screen">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Users</h1>
           <p className="text-gray-600">Manage user accounts and permissions</p>
@@ -115,8 +115,8 @@ export default function UsersPage() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-        <div className="flex flex-col sm:flex-row gap-4">
+      <div className="bg-white p-4 lg:p-6 rounded-xl shadow-sm border border-gray-100">
+        <div className="flex flex-col lg:flex-row gap-4">
           <div className="flex-1">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -129,7 +129,7 @@ export default function UsersPage() {
               />
             </div>
           </div>
-          <div className="sm:w-48">
+          <div className="lg:w-48">
             <select
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               value={roleFilter}
@@ -196,7 +196,7 @@ export default function UsersPage() {
       </div>
 
       {/* Pagination */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
         <p className="text-sm text-gray-700">
           Showing <span className="font-medium">1</span> to{' '}
           <span className="font-medium">{Math.min(10, filteredUsers.length)}</span> of{' '}

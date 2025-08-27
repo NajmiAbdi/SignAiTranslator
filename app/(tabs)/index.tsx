@@ -7,6 +7,7 @@ import * as Speech from 'expo-speech';
 import { RotateCcw, Play, Square, Volume2 } from 'lucide-react-native';
 import { aiService } from '../../services/aiService';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
+import { datasetService } from '../../services/datasetService';
 
 // Expo docs: sug onCameraReady kahor takePictureAsync + isticmaal useCameraPermissions.  :contentReference[oaicite:1]{index=1}
 
@@ -22,6 +23,9 @@ export default function CameraScreen() {
   useEffect(() => {
     (async () => {
       try {
+        // Initialize dataset
+        await datasetService.loadDataset();
+        
         await Audio.setAudioModeAsync({
           allowsRecordingIOS: false,
           playsInSilentModeIOS: true,
@@ -63,32 +67,46 @@ export default function CameraScreen() {
     setTranslatedText('');
 
     try {
-      // delay yar si hardware-ku u degto marka screen-ka la furo
-      await new Promise(res => setTimeout(res, 120));
+      // Small delay to ensure camera is stable
+      await new Promise(res => setTimeout(res, 200));
 
       const photo = await cameraRef.current.takePictureAsync({
         base64: true,
-        quality: 0.7,
+        quality: 0.8,
         skipProcessing: false,
       });
 
       if (!photo?.base64) throw new Error('No image data');
 
+      // Show processing indicator
+      setTranslatedText('Processing...');
+
       const result = await aiService.recognizeSign(photo.base64);
-      setTranslatedText(result.text ?? '');
+      
+      const translatedText = result.text || 'Sign not recognized';
+      setTranslatedText(translatedText);
 
       if (isSupabaseConfigured() && user) {
-        await supabase.from('chats').insert({
-          chat_id: `${user.id}_${Date.now()}`,
-          user_id: user.id,
-          message: result.text ?? '',
-          type: 'sign',
-          metadata: { confidence: result.confidence, gestures: result.gestures },
-        });
+        try {
+          await supabase.from('chats').insert({
+            chat_id: `${user.id}_${Date.now()}`,
+            user_id: user.id,
+            message: translatedText,
+            type: 'sign',
+            metadata: { 
+              confidence: result.confidence, 
+              gestures: result.gestures,
+              timestamp: result.timestamp
+            },
+          });
+        } catch (dbError) {
+          console.error('Error saving to database:', dbError);
+        }
       }
     } catch (e: any) {
       console.error('Recording error:', e);
       Alert.alert('Error', e?.message || 'Failed to capture image');
+      setTranslatedText('');
     } finally {
       setIsCapturing(false);
     }
@@ -98,8 +116,15 @@ export default function CameraScreen() {
 
   const playAudio = () => {
     if (!translatedText) return;
+    if (translatedText === 'Processing...' || translatedText === 'Sign not recognized') return;
+    
     try {
-      Speech.speak(translatedText, { language: 'en', pitch: 1.0, rate: 0.9 });
+      Speech.speak(translatedText, { 
+        language: 'en', 
+        pitch: 1.0, 
+        rate: 0.85,
+        quality: 'enhanced'
+      });
     } catch (e) {
       console.error('TTS error:', e);
       Alert.alert('Error', 'Failed to play audio');

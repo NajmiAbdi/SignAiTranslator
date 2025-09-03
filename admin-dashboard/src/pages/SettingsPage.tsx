@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react'; // ✅ useEffect waa la soo daray
 import { Save, Shield, Bell, Database, Key, Globe, Monitor } from 'lucide-react';
 import { geminiService } from '../services/geminiService';
 

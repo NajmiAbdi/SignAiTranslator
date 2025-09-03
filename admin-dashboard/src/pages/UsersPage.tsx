@@ -18,6 +18,14 @@ export default function UsersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [error, setError] = useState('');
+  const [showAddUserModal, setShowAddUserModal] = useState(false);
+  const [addingUser, setAddingUser] = useState(false);
+  const [newUser, setNewUser] = useState({
+    name: '',
+    email: '',
+    password: '',
+    role: 'user'
+  });
 
   useEffect(() => {
     loadUsers();
@@ -40,6 +48,20 @@ export default function UsersPage() {
       setUsers([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAddUser = async () => {
+    setAddingUser(true);
+    try {
+      // Add user creation logic here
+      await loadUsers(); // Reload users after adding
+      setShowAddUserModal(false);
+      setNewUser({ name: '', email: '', password: '', role: 'user' });
+    } catch (err: any) {
+      console.error('Error adding user:', err);
+    } finally {
+      setAddingUser(false);
     }
   };
 
@@ -109,13 +131,11 @@ export default function UsersPage() {
           <h1 className="text-2xl font-bold text-gray-900">Users</h1>
           <p className="text-gray-600">Manage user accounts and permissions</p>
         </div>
-        <button className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors">
-          <button 
-            onClick={() => setShowAddUserModal(true)}
-            className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors"
-          >
-            Add User
-          </button>
+        <button 
+          onClick={() => setShowAddUserModal(true)}
+          className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors"
+        >
+          Add User
         </button>
       </div>
 
@@ -219,6 +239,94 @@ export default function UsersPage() {
           </button>
         </div>
       </div>
+
+      {/* Add User Modal */}
+      {showAddUserModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Add New User</h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Full Name *
+                </label>
+                <input
+                  type="text"
+                  value={newUser.name}
+                  onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  placeholder="Enter full name"
+                  disabled={addingUser}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Email Address *
+                </label>
+                <input
+                  type="email"
+                  value={newUser.email}
+                  onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  placeholder="Enter email address"
+                  disabled={addingUser}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Password *
+                </label>
+                <input
+                  type="password"
+                  value={newUser.password}
+                  onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  placeholder="Enter password"
+                  disabled={addingUser}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Role
+                </label>
+                <select
+                  value={newUser.role}
+                  onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  disabled={addingUser}
+                >
+                  <option value="user">User</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowAddUserModal(false);
+                  setNewUser({ name: '', email: '', password: '', role: 'user' });
+                }}
+                disabled={addingUser}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleAddUser}
+                disabled={addingUser || !newUser.name.trim() || !newUser.email.trim() || !newUser.password.trim()}
+                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50"
+              >
+                {addingUser ? 'Creating...' : 'Create User'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

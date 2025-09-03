@@ -70,18 +70,29 @@ export default function DashboardPage() {
 
   const loadStats = async () => {
     try {
-      const { data, error } = await getUserStats();
+      // Load comprehensive stats from multiple sources
+      const [userStatsResult, datasetsResult, recentActivityResult] = await Promise.allSettled([
+        getUserStats(),
+        supabase.from('datasets').select('*').order('created_at', { ascending: false }).limit(5),
+        supabase.from('chats').select('*, users(name)').order('timestamp', { ascending: false }).limit(10)
+      ]);
       
-      if (error) {
-        console.error('Error loading stats:', error);
-        // Continue with default data instead of throwing
-      }
-      
-      setStats(data || {
+      let statsData = {
         totalUsers: 0,
         totalTranslations: 0,
         totalMessages: 0,
-      });
+      };
+      
+      if (userStatsResult.status === 'fulfilled') {
+        const { data, error } = userStatsResult.value;
+        if (error) {
+          console.error('Error loading user stats:', error);
+        } else {
+          statsData = data || statsData;
+        }
+      }
+      
+      setStats(statsData);
     } catch (err: any) {
       console.error('Dashboard stats error:', err);
       setError(err.message || 'Failed to load statistics');

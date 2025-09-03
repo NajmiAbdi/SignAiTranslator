@@ -193,18 +193,19 @@ export default function ChatScreen() {
     if (!recording) return;
 
     setIsRecording(false);
-    setIsLoading(true);
 
     try {
+      setIsLoading(true);
       await recording.stopAndUnloadAsync();
       const uri = recording.getURI();
       
       if (uri) {
-        // For demo purposes, simulate speech recognition
-        const mockTranscription = "Hello, how are you today?";
+        // Simulate speech recognition result
+        const mockTranscription = "Hello, how can I help you with sign language?";
         
-        // Use Gemini to clean up the transcription
-        const { text: cleanedText } = await geminiService.transcribeSpeech(mockTranscription);
+        // Use Gemini API to clean up and improve the transcription
+        const transcriptionResult = await geminiService.transcribeSpeech(mockTranscription);
+        const cleanedText = transcriptionResult.text;
         
         await sendMessage(cleanedText, 'speech');
       }
@@ -212,7 +213,8 @@ export default function ChatScreen() {
       setRecording(null);
     } catch (error) {
       console.error('Failed to process recording:', error);
-      Alert.alert('Error', 'Failed to process voice input');
+      Alert.alert('Error', 'Failed to process voice input. Please try again.');
+    } finally {
       setIsLoading(false);
     }
   };

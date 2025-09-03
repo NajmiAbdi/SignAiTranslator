@@ -110,7 +110,12 @@ export default function UsersPage() {
           <p className="text-gray-600">Manage user accounts and permissions</p>
         </div>
         <button className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors">
-          Add User
+          <button 
+            onClick={() => setShowAddUserModal(true)}
+            className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors"
+          >
+            Add User
+          </button>
         </button>
       </div>
 

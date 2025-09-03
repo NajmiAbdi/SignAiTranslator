@@ -24,12 +24,28 @@ class GeminiService {
       if (apiKey && apiKey !== this.currentApiKey) {
         this.currentApiKey = apiKey;
         this.genAI = new GoogleGenerativeAI(apiKey);
-        this.flashModel = this.genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-        this.proModel = this.genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
-        console.log('Gemini API initialized successfully');
+        this.flashModel = this.genAI.getGenerativeModel({ 
+          model: "gemini-1.5-flash",
+          generationConfig: {
+            temperature: 0.3,
+            topK: 32,
+            topP: 0.9,
+            maxOutputTokens: 1024,
+          }
+        });
+        this.proModel = this.genAI.getGenerativeModel({ 
+          model: "gemini-1.5-pro",
+          generationConfig: {
+            temperature: 0.7,
+            topK: 40,
+            topP: 0.95,
+            maxOutputTokens: 2048,
+          }
+        });
+        console.log('✅ Gemini API initialized successfully');
       }
     } catch (error) {
-      console.error('Failed to initialize Gemini:', error);
+      console.error('❌ Failed to initialize Gemini:', error);
     }
   }
 
@@ -39,8 +55,11 @@ class GeminiService {
       const testAI = new GoogleGenerativeAI(newApiKey);
       const testModel = testAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       
-      await testModel.generateContent("Test connection");
+      const testResult = await testModel.generateContent("Test connection");
+      const testText = await testResult.response.text();
       
+      if (!testText) throw new Error('Invalid API response');
+
       // Save to localStorage
       localStorage.setItem('gemini_api_key', newApiKey);
       
@@ -64,8 +83,9 @@ class GeminiService {
         if (!this.flashModel) return false;
       }
 
-      const result = await this.flashModel.generateContent("Hello");
-      return !!result.response.text();
+      const result = await this.flashModel.generateContent("Test connection - respond with OK");
+      const text = await result.response.text();
+      return text.includes('OK') || text.length > 0;
     } catch (error) {
       console.error('Gemini connection test failed:', error);
       return false;

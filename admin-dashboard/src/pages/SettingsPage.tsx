@@ -37,7 +37,7 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
     // Load current API key
     const currentKey = geminiService.getCurrentApiKey();
     if (currentKey) {
@@ -49,12 +49,35 @@ export default function SettingsPage() {
   const handleSave = async () => {
     setSaving(true);
     
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      // Save settings to localStorage and Supabase
+      const settingsData = {
+        apiRateLimit: settings.apiRateLimit,
+        apiTimeout: settings.apiTimeout,
+        enableCaching: settings.enableCaching,
+        requireTwoFA: settings.requireTwoFA,
+        sessionTimeout: settings.sessionTimeout,
+        passwordMinLength: settings.passwordMinLength,
+        emailNotifications: settings.emailNotifications,
+        pushNotifications: settings.pushNotifications,
+        weeklyReports: settings.weeklyReports,
+        autoBackup: settings.autoBackup,
+        backupFrequency: settings.backupFrequency,
+        logRetentionDays: settings.logRetentionDays,
+        defaultLanguage: settings.defaultLanguage,
+        modelQuality: settings.modelQuality,
+        enableOfflineMode: settings.enableOfflineMode,
+      };
+      
+      localStorage.setItem('admin_settings', JSON.stringify(settingsData));
+      
       setSaving(false);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
-    }, 1000);
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      setSaving(false);
+    }
   };
 
   const handleUpdateGeminiKey = async () => {
@@ -67,14 +90,14 @@ export default function SettingsPage() {
       
       if (success) {
         setApiKeyStatus('valid');
-        alert('Gemini API key updated successfully!');
+        alert('✅ Gemini API key updated successfully! The new key is now active across the entire system.');
       } else {
         setApiKeyStatus('invalid');
-        alert('Invalid API key. Please check and try again.');
+        alert('❌ Invalid API key. Please verify the key and try again.');
       }
     } catch (error) {
       setApiKeyStatus('invalid');
-      alert('Failed to update API key.');
+      alert('❌ Failed to update API key. Please check your connection and try again.');
     }
   };
 

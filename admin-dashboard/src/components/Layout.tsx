@@ -41,7 +41,6 @@ export default function Layout({ children }: LayoutProps) {
 
   const NavItem = ({ path, icon: Icon, label }: { path: string; icon: any; label: string }) => {
     const isActive = location.pathname === path;
-    
     return (
       <Link
         to={path}
@@ -59,25 +58,19 @@ export default function Layout({ children }: LayoutProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Mobile sidebar backdrop */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black bg-opacity-50 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
+    <div className="flex h-screen bg-gray-50">
       {/* Sidebar */}
       <div
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform lg:translate-x-0 lg:static lg:inset-0 ${
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 lg:translate-x-0 lg:static lg:inset-0 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200">
           <div className="flex items-center">
             <Activity className="h-8 w-8 text-primary-600" />
-            <span className="ml-2 text-lg font-semibold text-gray-900 hidden sm:block">Admin Panel</span>
+            <span className="ml-2 text-lg font-semibold text-gray-900 hidden sm:block">
+              Admin Panel
+            </span>
           </div>
           <button
             onClick={() => setSidebarOpen(false)}
@@ -87,7 +80,7 @@ export default function Layout({ children }: LayoutProps) {
           </button>
         </div>
 
-        <nav className="mt-8 px-4 space-y-2">
+        <nav className="mt-6 px-4 space-y-1">
           {navItems.map((item) => (
             <NavItem key={item.path} {...item} />
           ))}
@@ -104,31 +97,37 @@ export default function Layout({ children }: LayoutProps) {
         </div>
       </div>
 
+      {/* Overlay for mobile */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Main content */}
-      <div className="lg:pl-64">
+      <div className="flex-1 flex flex-col lg:pl-1">
         {/* Header */}
         <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-30">
-          <div className="flex items-center justify-between px-4 py-4">
+          <div className="flex items-center justify-between px-4 py-3">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 lg:hidden"
+              className="p-2 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-100 lg:hidden"
             >
               <Menu className="h-6 w-6" />
             </button>
-            
+
             <div className="flex items-center space-x-4">
-              <div className="text-sm text-gray-500 hidden sm:block">
+              <span className="text-sm text-gray-500 hidden sm:block">
                 Sign Language Translator Admin
-              </div>
+              </span>
             </div>
           </div>
         </header>
 
         {/* Page content */}
-        <main className="p-4 lg:p-6">
-          <div className="fade-in">
-            {children}
-          </div>
+        <main className="flex-1 overflow-y-auto p-4 lg:p-6">
+          <div className="animate-fade-in">{children}</div>
         </main>
       </div>
     </div>

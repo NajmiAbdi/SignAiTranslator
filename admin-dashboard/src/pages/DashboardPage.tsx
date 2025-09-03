@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Users, Activity, MessageSquare, Database, TrendingUp, Calendar } from 'lucide-react';
-import { getUserStats } from '../services/supabase';
+import { supabase } from '../services/supabase'; // ✅ soo dhoofinta saxda ah
 import LoadingSpinner from '../components/LoadingSpinner';
 
 interface StatsData {
@@ -9,16 +9,16 @@ interface StatsData {
   totalMessages: number;
 }
 
-const StatCard = ({ 
-  title, 
-  value, 
-  icon: Icon, 
-  color, 
-  trend 
-}: { 
-  title: string; 
-  value: number; 
-  icon: any; 
+const StatCard = ({
+  title,
+  value,
+  icon: Icon,
+  color,
+  trend
+}: {
+  title: string;
+  value: number;
+  icon: any;
   color: string;
   trend?: string;
 }) => (
@@ -41,13 +41,13 @@ const StatCard = ({
   </div>
 );
 
-const ActivityItem = ({ 
-  action, 
-  user, 
-  time 
-}: { 
-  action: string; 
-  user: string; 
+const ActivityItem = ({
+  action,
+  user,
+  time
+}: {
+  action: string;
+  user: string;
   time: string;
 }) => (
   <div className="flex items-center justify-between py-3 border-b border-gray-100 last:border-b-0">
@@ -61,46 +61,54 @@ const ActivityItem = ({
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<StatsData | null>(null);
+  const [recentActivity, setRecentActivity] = useState<any[]>([]);
+  const [systemStatus, setSystemStatus] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    loadStats();
+    loadDashboard();
   }, []);
 
-  const loadStats = async () => {
+  const loadDashboard = async () => {
     try {
-      // Load comprehensive stats from multiple sources
-      const [userStatsResult, datasetsResult, recentActivityResult] = await Promise.allSettled([
-        getUserStats(),
-        supabase.from('datasets').select('*').order('created_at', { ascending: false }).limit(5),
-        supabase.from('chats').select('*, users(name)').order('timestamp', { ascending: false }).limit(10)
+      const [
+        usersResult,
+        translationsResult,
+        messagesResult,
+        activityResult
+      ] = await Promise.all([
+        supabase.from('users').select('id'),
+        supabase.from('translations').select('id'),
+        supabase.from('chats').select('id, message'),
+        supabase
+          .from('activity_logs')
+          .select('action,user,timestamp')
+          .order('timestamp', { ascending: false })
+          .limit(10)
       ]);
-      
-      let statsData = {
-        totalUsers: 0,
-        totalTranslations: 0,
-        totalMessages: 0,
-      };
-      
-      if (userStatsResult.status === 'fulfilled') {
-        const { data, error } = userStatsResult.value;
-        if (error) {
-          console.error('Error loading user stats:', error);
-        } else {
-          statsData = data || statsData;
-        }
-      }
-      
-      setStats(statsData);
+
+      setStats({
+        totalUsers: usersResult.data?.length || 0,
+        totalTranslations: translationsResult.data?.length || 0,
+        totalMessages: messagesResult.data?.length || 0
+      });
+
+      setRecentActivity(activityResult.data || []);
+
+      // Example system status check (can be adjusted to your tables)
+      setSystemStatus([
+        { name: 'API Service', status: 'Online' },
+        { name: 'Database', status: usersResult.error ? 'Disconnected' : 'Connected' },
+        { name: 'AI Models', status: 'Training in progress' }
+      ]);
     } catch (err: any) {
-      console.error('Dashboard stats error:', err);
-      setError(err.message || 'Failed to load statistics');
-      // Set default stats so the UI still works
+      console.error('Dashboard load error:', err);
+      setError(err.message || 'Failed to load dashboard');
       setStats({
         totalUsers: 0,
         totalTranslations: 0,
-        totalMessages: 0,
+        totalMessages: 0
       });
     } finally {
       setLoading(false);
@@ -170,13 +178,13 @@ export default function DashboardPage() {
 
       {/* Charts and Activity */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 lg:gap-6">
-        {/* Usage Chart */}
+        {/* Usage Chart (placeholder for real chart integration) */}
         <div className="bg-white p-4 lg:p-6 rounded-xl shadow-sm border border-gray-100">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Usage Trends</h3>
           <div className="h-48 lg:h-64 flex items-center justify-center bg-gray-50 rounded-lg">
             <div className="text-center">
               <Activity className="h-12 w-12 text-gray-400 mx-auto mb-2" />
-              <p className="text-gray-500">Chart visualization will be implemented</p>
+              <p className="text-gray-500">Chart visualization coming soon</p>
             </div>
           </div>
         </div>
@@ -185,31 +193,18 @@ export default function DashboardPage() {
         <div className="bg-white p-4 lg:p-6 rounded-xl shadow-sm border border-gray-100">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h3>
           <div className="space-y-1">
-            <ActivityItem
-              action="New user registration"
-              user="john@example.com"
-              time="2 min ago"
-            />
-            <ActivityItem
-              action="Translation completed"
-              user="sarah@example.com"
-              time="5 min ago"
-            />
-            <ActivityItem
-              action="Dataset uploaded"
-              user="admin@system.com"
-              time="15 min ago"
-            />
-            <ActivityItem
-              action="Model training started"
-              user="admin@system.com"
-              time="1 hour ago"
-            />
-            <ActivityItem
-              action="New chat session"
-              user="mike@example.com"
-              time="2 hours ago"
-            />
+            {recentActivity.length > 0 ? (
+              recentActivity.map((act, idx) => (
+                <ActivityItem
+                  key={idx}
+                  action={act.action}
+                  user={act.user}
+                  time={new Date(act.timestamp).toLocaleString()}
+                />
+              ))
+            ) : (
+              <p className="text-gray-500">No recent activity found</p>
+            )}
           </div>
         </div>
       </div>
@@ -218,27 +213,23 @@ export default function DashboardPage() {
       <div className="bg-white p-4 lg:p-6 rounded-xl shadow-sm border border-gray-100">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">System Status</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div className="flex items-center">
-            <div className="w-3 h-3 bg-green-400 rounded-full mr-3"></div>
-            <div>
-              <p className="text-sm font-medium text-gray-900">API Service</p>
-              <p className="text-xs text-gray-500">Online</p>
+          {systemStatus.map((s, idx) => (
+            <div key={idx} className="flex items-center">
+              <div
+                className={`w-3 h-3 rounded-full mr-3 ${
+                  s.status === 'Online' || s.status === 'Connected'
+                    ? 'bg-green-400'
+                    : s.status.includes('progress')
+                    ? 'bg-yellow-400'
+                    : 'bg-red-400'
+                }`}
+              ></div>
+              <div>
+                <p className="text-sm font-medium text-gray-900">{s.name}</p>
+                <p className="text-xs text-gray-500">{s.status}</p>
+              </div>
             </div>
-          </div>
-          <div className="flex items-center">
-            <div className="w-3 h-3 bg-green-400 rounded-full mr-3"></div>
-            <div>
-              <p className="text-sm font-medium text-gray-900">Database</p>
-              <p className="text-xs text-gray-500">Connected</p>
-            </div>
-          </div>
-          <div className="flex items-center">
-            <div className="w-3 h-3 bg-yellow-400 rounded-full mr-3"></div>
-            <div>
-              <p className="text-sm font-medium text-gray-900">AI Models</p>
-              <p className="text-xs text-gray-500">Training in progress</p>
-            </div>
-          </div>
+          ))}
         </div>
       </div>
     </div>

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Save, Shield, Bell, Database, Key, Globe, Monitor } from 'lucide-react';
+import { geminiService } from '../services/geminiService';
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState({
@@ -29,8 +30,21 @@ export default function SettingsPage() {
     enableOfflineMode: false,
   });
 
+  // API Keys state
+  const [geminiApiKey, setGeminiApiKey] = useState('');
+  const [apiKeyStatus, setApiKeyStatus] = useState<'idle' | 'testing' | 'valid' | 'invalid'>('idle');
+
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  React.useEffect(() => {
+    // Load current API key
+    const currentKey = geminiService.getCurrentApiKey();
+    if (currentKey) {
+      setGeminiApiKey(currentKey.substring(0, 20) + '...');
+      setApiKeyStatus('valid');
+    }
+  }, []);
 
   const handleSave = async () => {
     setSaving(true);
@@ -41,6 +55,27 @@ export default function SettingsPage() {
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     }, 1000);
+  };
+
+  const handleUpdateGeminiKey = async () => {
+    if (!geminiApiKey.trim()) return;
+    
+    setApiKeyStatus('testing');
+    
+    try {
+      const success = await geminiService.updateApiKey(geminiApiKey);
+      
+      if (success) {
+        setApiKeyStatus('valid');
+        alert('Gemini API key updated successfully!');
+      } else {
+        setApiKeyStatus('invalid');
+        alert('Invalid API key. Please check and try again.');
+      }
+    } catch (error) {
+      setApiKeyStatus('invalid');
+      alert('Failed to update API key.');
+    }
   };
 
   const SettingSection = ({ title, icon: Icon, children }: { 
@@ -324,33 +359,57 @@ export default function SettingsPage() {
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              AI Service API Key
+              Gemini API Key
             </label>
+            <div className="flex items-center mb-2">
+              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                apiKeyStatus === 'valid' ? 'bg-green-100 text-green-800' :
+                apiKeyStatus === 'invalid' ? 'bg-red-100 text-red-800' :
+                apiKeyStatus === 'testing' ? 'bg-yellow-100 text-yellow-800' :
+                'bg-gray-100 text-gray-800'
+              }`}>
+                {apiKeyStatus === 'valid' ? '✓ Connected' :
+                 apiKeyStatus === 'invalid' ? '✗ Invalid' :
+                 apiKeyStatus === 'testing' ? '⟳ Testing...' :
+                 '○ Not Set'}
+              </span>
+            </div>
             <div className="flex flex-col sm:flex-row gap-2">
               <input
-                type="password"
-                placeholder="••••••••••••••••••••••••••••••••"
+                type="text"
+                value={geminiApiKey}
+                onChange={(e) => setGeminiApiKey(e.target.value)}
+                placeholder="Enter your Gemini API key..."
                 className="flex-1 px-3 py-2 border border-gray-300 rounded-md sm:rounded-l-md sm:rounded-r-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               />
-              <button className="px-4 py-2 bg-gray-100 border border-gray-300 rounded-md sm:border-l-0 sm:rounded-l-none sm:rounded-r-md hover:bg-gray-200 transition-colors">
-                Update
+              <button 
+                onClick={handleUpdateGeminiKey}
+                disabled={!geminiApiKey.trim() || apiKeyStatus === 'testing'}
+                className="px-4 py-2 bg-primary-600 text-white border border-primary-600 rounded-md sm:border-l-0 sm:rounded-l-none sm:rounded-r-md hover:bg-primary-700 transition-colors disabled:opacity-50"
+              >
+                {apiKeyStatus === 'testing' ? 'Testing...' : 'Update'}
               </button>
             </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Get your free API key from <a href="https://makersuite.google.com/app/apikey" target="_blank" className="text-primary-600 hover:text-primary-700">Google AI Studio</a>
+            </p>
           </div>
           
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Speech Service API Key
+              API Usage Statistics
             </label>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <input
-                type="password"
-                placeholder="••••••••••••••••••••••••••••••••"
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-md sm:rounded-l-md sm:rounded-r-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-              />
-              <button className="px-4 py-2 bg-gray-100 border border-gray-300 rounded-md sm:border-l-0 sm:rounded-l-none sm:rounded-r-md hover:bg-gray-200 transition-colors">
-                Update
-              </button>
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="text-gray-600">Requests Today:</span>
+                  <span className="font-medium ml-2">247</span>
+                </div>
+                <div>
+                  <span className="text-gray-600">Monthly Limit:</span>
+                  <span className="font-medium ml-2">10,000</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>

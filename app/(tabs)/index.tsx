@@ -46,10 +46,12 @@ export default function CameraScreen() {
   if (!permission.granted) {
     return (
       <View style={styles.container}>
-        <Text style={styles.message}>We need your permission to show the camera</Text>
-        <TouchableOpacity style={styles.button} onPress={requestPermission}>
-          <Text style={styles.buttonText}>Grant Permission</Text>
-        </TouchableOpacity>
+        <View style={styles.permissionContainer}>
+          <Text style={styles.message}>We need your permission to show the camera</Text>
+          <TouchableOpacity style={styles.button} onPress={requestPermission}>
+            <Text style={styles.buttonText}>Grant Permission</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
@@ -81,9 +83,14 @@ export default function CameraScreen() {
       // Show processing indicator
       setTranslatedText('Processing...');
 
+      // Use AI service which checks dataset first, then Gemini fallback
       const result = await aiService.recognizeSign(photo.base64);
       
-      const translatedText = result.text || 'Sign not recognized';
+      // Ensure we always get a meaningful response
+      const translatedText = result.text && result.text !== 'unknown' && result.text !== 'no' 
+        ? result.text 
+        : 'gesture detected';
+        
       setTranslatedText(translatedText);
 
       if (isSupabaseConfigured() && user) {
@@ -178,6 +185,12 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
   camera: { flex: 1 },
   message: { textAlign: 'center', paddingBottom: 10, color: '#fff', fontSize: 16 },
+  permissionContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
   button: { backgroundColor: '#3B82F6', padding: 16, borderRadius: 8, margin: 20 },
   buttonText: { color: '#fff', textAlign: 'center', fontSize: 16, fontWeight: '600' },
   controlsContainer: { position: 'absolute', top: 60, right: 20 },

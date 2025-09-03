@@ -19,6 +19,10 @@ export default function ChatScreen() {
   const [user, setUser] = useState<any>(null);
   const scrollViewRef = useRef<ScrollView>(null);
 
+  // Add state for speech input
+  const [speechInput, setSpeechInput] = useState('');
+  const [isRecording, setIsRecording] = useState(false);
+
   useEffect(() => {
     if (isSupabaseConfigured()) {
       initializeUser();
@@ -115,6 +119,20 @@ export default function ChatScreen() {
       
       setMessages(prev => [...prev, userMessage]);
 
+      // Get AI response using Gemini
+      const aiResponseText = await aiService.chatResponse(text);
+      
+      // Add AI response
+      const aiMessage: Message = {
+        id: `ai_${Date.now()}`,
+        text: aiResponseText,
+        type: 'text',
+        timestamp: Date.now(),
+        isUser: false,
+      };
+      
+      setMessages(prev => [...prev, aiMessage]);
+
       // Save to database if Supabase is configured
       if (isSupabaseConfigured() && user) {
         try {
@@ -125,44 +143,17 @@ export default function ChatScreen() {
             type,
             metadata: { source: 'chat' },
           });
+          
+          // Save AI response too
+          await supabase.from('chats').insert({
+            chat_id: aiMessage.id,
+            user_id: user.id,
+            message: aiResponseText,
+            type: 'text',
+            metadata: { source: 'ai_response' },
+          });
         } catch (error) {
           console.error('Error saving message:', error);
-        }
-      }
-
-      // Generate AI response based on type
-      let aiResponse = '';
-      if (type === 'text') {
-        const signResult = await aiService.speechToSign('');
-        aiResponse = `Converted to sign language animation (${signResult.animations.length} gestures)`;
-      } else if (type === 'sign') {
-        aiResponse = 'Sign language recognized and translated';
-      }
-
-      // Add AI response
-      if (aiResponse) {
-        const aiMessage: Message = {
-          id: `ai_${Date.now()}`,
-          text: aiResponse,
-          type: 'text',
-          timestamp: Date.now(),
-          isUser: false,
-        };
-        
-        setMessages(prev => [...prev, aiMessage]);
-        
-        if (isSupabaseConfigured() && user) {
-          try {
-            await supabase.from('chats').insert({
-              chat_id: aiMessage.id,
-              user_id: user.id,
-              message: aiResponse,
-              type: 'text',
-              metadata: { source: 'ai_response' },
-            });
-          } catch (error) {
-            console.error('Error saving AI response:', error);
-          }
         }
       }
 
@@ -181,15 +172,21 @@ export default function ChatScreen() {
     
     try {
       setIsLoading(true);
-      const mockResult = {
-        animations: ['hello', 'world', 'sign'],
-        duration: 2000,
-        keyframes: []
-      };
-      await sendMessage(`Speech converted to sign: ${mockResult.animations.join(', ')}`, 'speech');
+      
+      // First transcribe the speech using Gemini
+      const transcriptionResult = await aiService.transcribeSpeech(inputText);
+      
+      if (!transcriptionResult.text) {
+        throw new Error('Failed to transcribe speech');
+      }
+      
+      // Convert to sign language
+      const signResult = await aiService.speechToSign(transcriptionResult.text);
+      
+      await sendMessage(`"${transcriptionResult.text}" → Sign: ${signResult.animations.join(', ')}`, 'speech');
     } catch (error) {
       console.error('Speech to sign error:', error);
-      Alert.alert('Error', 'Failed to convert speech to sign');
+      Alert.alert('Error', 'Failed to convert speech to sign. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -345,7 +342,7 @@ const styles = StyleSheet.create({
   },
   messageText: {
     fontSize: 16,
-    color: '#FFFFFF',
+    color: '#1F2937',
     lineHeight: 20,
   },
   inputContainer: {

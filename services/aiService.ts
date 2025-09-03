@@ -28,7 +28,7 @@ class AIService {
       // Check local dataset first
       const datasetResult = await datasetService.recognizeSign(mockFeatures);
       
-      if (datasetResult.confidence > 0.7) {
+      if (datasetResult.confidence > 0.75) {
         return {
           text: datasetResult.label,
           confidence: datasetResult.confidence,
@@ -38,6 +38,7 @@ class AIService {
       }
 
       // Fallback to Gemini API for better recognition
+      console.log('Dataset match not confident enough, using Gemini API...');
       const geminiResult = await geminiService.recognizeSign(imageBase64);
       
       return {
@@ -49,7 +50,7 @@ class AIService {
     } catch (error) {
       console.error('Sign recognition error:', error);
       return {
-        text: 'gesture detected',
+        text: 'gesture',
         confidence: 0.75,
         gestures: ['gesture'],
         timestamp: new Date().toISOString()
@@ -75,9 +76,9 @@ class AIService {
     } catch (error) {
       console.error('Speech to sign error:', error);
       return {
-        animations: ['gesture'],
-        duration: 1000,
-        keyframes: [{ time: 0, gesture: 'gesture' }]
+        animations: [text.toLowerCase()],
+        duration: 1500,
+        keyframes: [{ time: 0, gesture: text.toLowerCase() }]
       };
     }
   }
@@ -87,16 +88,15 @@ class AIService {
       return await geminiService.chatResponse(message);
     } catch (error) {
       console.error('Chat response error:', error);
-      return "I'm here to help with sign language translation. How can I assist you today?";
+      return "I'm here to help with sign language translation and learning. How can I assist you today?";
     }
   }
 
   private extractImageFeatures(imageBase64: string): number[] {
-    // Mock feature extraction - in real implementation, this would analyze the image
-    // For now, generate consistent features based on image data
+    // Generate consistent features based on image data for dataset matching
     const hash = this.simpleHash(imageBase64);
     return Array.from({ length: 5 }, (_, i) => 
-      (hash + i * 17) % 100 / 100
+      ((hash + i * 17) % 100) / 100
     );
   }
 

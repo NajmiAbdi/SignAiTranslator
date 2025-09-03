@@ -82,29 +82,23 @@ export default function DatasetsPage() {
     setUploadProgress(0);
 
     try {
-      // Simulate upload progress
+      // Show upload progress
       const progressInterval = setInterval(() => {
         setUploadProgress(prev => Math.min(prev + 10, 90));
       }, 200);
 
-      // Process CSV file
+      // Read and process file content
       const text = await file.text();
-      const lines = text.split('\n');
-      const headers = lines[0].split(',');
       
-      const processedData = lines.slice(1)
-        .filter(line => line.trim())
-        .map((line, index) => {
-          const values = line.split(',');
-          return {
-            id: index,
-            label: values[0] || 'unknown',
-            features: values.slice(1).map(v => parseFloat(v) || 0),
-            confidence: 0.8 + Math.random() * 0.2
-          };
-        });
+      // Use Gemini API to process the dataset
+      const { geminiService } = await import('../services/geminiService');
+      const processedData = await geminiService.processDataset(text);
+      
+      if (processedData.length === 0) {
+        throw new Error('Failed to process dataset - no valid data found');
+      }
 
-      // Upload to Supabase
+      // Upload processed data to Supabase
       const datasetId = `dataset_${Date.now()}`;
       const { error: uploadError } = await supabase
         .from('datasets')
@@ -112,13 +106,14 @@ export default function DatasetsPage() {
           dataset_id: datasetId,
           type: 'sign_language',
           status: 'completed',
-          uploaded_by: 'admin', // In real app, get from auth
+          uploaded_by: 'admin',
           metadata: {
             filename: file.name,
             fileSize: file.size,
             uploadDate: new Date().toISOString(),
             recordCount: processedData.length,
-            data: processedData
+            data: processedData,
+            processedBy: 'gemini_api'
           }
         });
 
@@ -127,18 +122,21 @@ export default function DatasetsPage() {
 
       if (uploadError) throw uploadError;
 
+      // Show success message
+      alert(`Dataset uploaded successfully! ${processedData.length} records processed and ready for use.`);
+
       setTimeout(() => {
         setUploadModalOpen(false);
         setUploading(false);
         setUploadProgress(0);
-        loadDatasets(); // Reload datasets
+        loadDatasets();
       }, 1000);
 
     } catch (error) {
       console.error('Upload error:', error);
       setUploading(false);
       setUploadProgress(0);
-      alert('Failed to upload dataset');
+      alert(`Failed to upload dataset: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 

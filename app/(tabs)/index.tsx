@@ -69,27 +69,27 @@ export default function CameraScreen() {
     setTranslatedText('');
 
     try {
-      // Small delay to ensure camera is stable
-      await new Promise(res => setTimeout(res, 200));
+      // Ensure camera is stable before capture
+      await new Promise(res => setTimeout(res, 300));
 
       const photo = await cameraRef.current.takePictureAsync({
         base64: true,
-        quality: 0.8,
+        quality: 0.9,
         skipProcessing: false,
       });
 
       if (!photo?.base64) throw new Error('No image data');
 
       // Show processing indicator
-      setTranslatedText('Processing...');
+      setTranslatedText('Analyzing sign...');
 
-      // Use AI service which checks dataset first, then Gemini fallback
+      // Use AI service: dataset first, then Gemini API fallback
       const result = await aiService.recognizeSign(photo.base64);
       
-      // Ensure we always get a meaningful response
-      const translatedText = result.text && result.text !== 'unknown' && result.text !== 'no' 
+      // Ensure we always get a meaningful response from Gemini
+      const translatedText = result.text && result.text.trim().length > 0
         ? result.text 
-        : 'gesture detected';
+        : 'sign detected';
         
       setTranslatedText(translatedText);
 
@@ -190,6 +190,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 20,
+    paddingTop: 100,
   },
   button: { backgroundColor: '#3B82F6', padding: 16, borderRadius: 8, margin: 20 },
   buttonText: { color: '#fff', textAlign: 'center', fontSize: 16, fontWeight: '600' },

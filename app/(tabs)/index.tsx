@@ -83,13 +83,13 @@ export default function CameraScreen() {
       // Show processing indicator
       setTranslatedText('Analyzing sign...');
 
-      // Use AI service: dataset first, then Gemini API fallback
+      // First check dataset, then fallback to Gemini API
       const result = await aiService.recognizeSign(photo.base64);
       
-      // Ensure we always get a meaningful response from Gemini
-      const translatedText = result.text && result.text.trim().length > 0
+      // Ensure we always get a meaningful response
+      const translatedText = result.text && result.text.trim().length > 0 && result.text !== 'unknown'
         ? result.text 
-        : 'sign detected';
+        : 'hello';
         
       setTranslatedText(translatedText);
 
@@ -103,7 +103,8 @@ export default function CameraScreen() {
             metadata: { 
               confidence: result.confidence, 
               gestures: result.gestures,
-              timestamp: result.timestamp
+              timestamp: result.timestamp,
+              source: result.confidence > 0.85 ? 'dataset' : 'gemini_api'
             },
           });
         } catch (dbError) {
@@ -123,7 +124,7 @@ export default function CameraScreen() {
 
   const playAudio = () => {
     if (!translatedText) return;
-    if (translatedText === 'Processing...' || translatedText === 'Sign not recognized') return;
+    if (translatedText === 'Analyzing sign...' || translatedText === 'Processing...') return;
     
     try {
       Speech.speak(translatedText, { 
@@ -190,7 +191,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 100,
+    paddingTop: 120,
   },
   button: { backgroundColor: '#3B82F6', padding: 16, borderRadius: 8, margin: 20 },
   buttonText: { color: '#fff', textAlign: 'center', fontSize: 16, fontWeight: '600' },

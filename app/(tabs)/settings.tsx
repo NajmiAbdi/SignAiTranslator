@@ -208,8 +208,9 @@ export default function SettingsScreen() {
       }
       
       // Import required modules dynamically
-      const { default: * as FileSystem } = await import('expo-file-system');
-      const { default: * as Sharing } = await import('expo-sharing');
+      const FileSystem = await import('expo-file-system');
+      const Sharing = await import('expo-sharing');
+
       
       // Create comprehensive document content
       const docContent = `SIGN LANGUAGE TRANSLATOR - USER DATA EXPORT

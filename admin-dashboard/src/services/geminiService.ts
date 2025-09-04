@@ -5,15 +5,32 @@ class GeminiService {
   private flashModel: any = null;
   private proModel: any = null;
   private currentApiKey: string | null = null;
+  private isInitializing = false;
+  private initPromise: Promise<void> | null = null;
 
   constructor() {
     this.initializeGemini();
   }
 
-  private async initializeGemini() {
+  private async initializeGemini(): Promise<void> {
+    if (this.isInitializing && this.initPromise) {
+      return this.initPromise;
+    }
+
+    this.isInitializing = true;
+    this.initPromise = this.performInitialization();
+    
+    try {
+      await this.initPromise;
+    } finally {
+      this.isInitializing = false;
+    }
+  }
+
+  private async performInitialization(): Promise<void> {
     try {
       // Get API key from environment or stored settings
-      let apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      let apiKey = import.meta.env.VITE_AI_API_KEY;
       
       // Try to get from localStorage (admin settings)
       const storedKey = localStorage.getItem('gemini_api_key');
@@ -24,6 +41,8 @@ class GeminiService {
       if (apiKey && apiKey !== this.currentApiKey) {
         this.currentApiKey = apiKey;
         this.genAI = new GoogleGenerativeAI(apiKey);
+        
+        // Use free Gemini models
         this.flashModel = this.genAI.getGenerativeModel({ 
           model: "gemini-1.5-flash",
           generationConfig: {
@@ -33,6 +52,7 @@ class GeminiService {
             maxOutputTokens: 1024,
           }
         });
+        
         this.proModel = this.genAI.getGenerativeModel({ 
           model: "gemini-1.5-pro",
           generationConfig: {
@@ -42,10 +62,12 @@ class GeminiService {
             maxOutputTokens: 2048,
           }
         });
+        
         console.log('✅ Gemini API initialized successfully');
       }
     } catch (error) {
       console.error('❌ Failed to initialize Gemini:', error);
+      throw error;
     }
   }
 
@@ -78,10 +100,10 @@ class GeminiService {
 
   async testConnection(): Promise<boolean> {
     try {
-      if (!this.flashModel) {
-        await this.initializeGemini();
-        if (!this.flashModel) return false;
-      }
+      // Ensure initialization
+      await this.initializeGemini();
+      
+      if (!this.flashModel) return false;
 
       const result = await this.flashModel.generateContent("Test connection - respond with OK");
       const text = await result.response.text();
@@ -94,11 +116,11 @@ class GeminiService {
 
   async processDataset(csvData: string): Promise<any[]> {
     try {
+      // Ensure initialization
+      await this.initializeGemini();
+      
       if (!this.proModel) {
-        await this.initializeGemini();
-        if (!this.proModel) {
-          throw new Error('Gemini API not initialized');
-        }
+        throw new Error('Gemini Pro model not available');
       }
 
       const prompt = `Process this CSV data for sign language dataset training:
@@ -142,7 +164,7 @@ Return only the JSON array:`;
       const lines = csvData.split('\n').filter(line => line.trim());
       if (lines.length < 2) return [];
       
-      return lines.slice(1).map((line, index) => {
+      return lines.slice(1, 51).map((line, index) => {
         const values = line.split(',');
         const label = values[0]?.trim().toLowerCase() || `sign_${index}`;
         

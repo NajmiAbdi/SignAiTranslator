@@ -207,11 +207,11 @@ export default function SettingsScreen() {
         }
       }
       
-      // Import required modules for file operations
-      const FileSystem = await import('expo-file-system');
-      const Sharing = await import('expo-sharing');
+      // Import required modules dynamically
+      const { default: * as FileSystem } = await import('expo-file-system');
+      const { default: * as Sharing } = await import('expo-sharing');
       
-      // Create comprehensive document content in DOCX-like format
+      // Create comprehensive document content
       const docContent = `SIGN LANGUAGE TRANSLATOR - USER DATA EXPORT
 ==========================================
 
@@ -286,7 +286,7 @@ support@signlanguagetranslator.com
 
 © 2025 AI Translation Systems. All rights reserved.`;
       
-      const fileName = `SignLanguageData_${new Date().toISOString().split('T')[0]}.txt`;
+      const fileName = `SignLanguageData_${new Date().toISOString().split('T')[0]}.doc`;
       const fileUri = FileSystem.documentDirectory + fileName;
       await FileSystem.writeAsStringAsync(fileUri, docContent);
       
@@ -298,7 +298,7 @@ support@signlanguagetranslator.com
         });
       } else {
         Alert.alert('Export Complete', `Data exported to: ${fileName}`);
-      }
+        `Your data has been exported as ${fileName}`,
       
       Alert.alert('Export Successful', `Your data has been exported as "${fileName}" and is ready for download.`);
     } catch (error) {

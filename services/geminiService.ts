@@ -1,5 +1,4 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 export interface SignRecognitionResult {
   text: string;
@@ -28,6 +27,7 @@ class GeminiService {
   private initPromise: Promise<void> | null = null;
 
   constructor() {
+    // Initialize immediately with environment variable
     this.initializeGemini();
   }
 
@@ -48,30 +48,18 @@ class GeminiService {
 
   private async performInitialization(): Promise<void> {
     try {
-      // Get API key from environment first
-      let apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
+      // Always use environment variable for API key
+      const apiKey = process.env.EXPO_PUBLIC_AI_API_KEY;
       
-      // Try to get updated API key from Supabase if configured
-      if (isSupabaseConfigured()) {
-        try {
-          const { data: settings } = await supabase
-            .from('analytics')
-            .select('*')
-            .eq('type', 'gemini_api_key')
-            .single();
-          
-          if (settings?.metadata?.api_key) {
-            apiKey = settings.metadata.api_key;
-          }
-        } catch (error) {
-          console.log('Using default API key from environment');
-        }
+      if (!apiKey) {
+        throw new Error('Gemini API key not found in environment variables');
       }
 
       if (apiKey && apiKey !== this.currentApiKey) {
         this.currentApiKey = apiKey;
         this.genAI = new GoogleGenerativeAI(apiKey);
         
+        // Use free Gemini models
         this.flashModel = this.genAI.getGenerativeModel({ 
           model: "gemini-1.5-flash",
           generationConfig: {
@@ -98,7 +86,7 @@ class GeminiService {
             temperature: 0.7,
             topK: 40,
             topP: 0.95,
-            maxOutputTokens: 2048,
+            maxOutputTokens: 1024,
           },
           safetySettings: [
             {
@@ -120,61 +108,18 @@ class GeminiService {
     }
   }
 
-  async updateApiKey(newApiKey: string): Promise<boolean> {
-    try {
-      // Test the API key first
-      const testAI = new GoogleGenerativeAI(newApiKey);
-      const testModel = testAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-      
-      // Make a test call
-      const testResult = await testModel.generateContent("Test connection - respond with OK");
-      const testText = await testResult.response.text();
-      
-      if (!testText || testText.length === 0) {
-        throw new Error('Invalid API response');
-      }
-
-      // Save to Supabase if configured
-      if (isSupabaseConfigured()) {
-        await supabase
-          .from('analytics')
-          .upsert({
-            metric_id: 'gemini_api_key',
-            type: 'gemini_api_key',
-            value: 1,
-            period: 'permanent',
-            created_at: new Date().toISOString()
-          }, {
-            onConflict: 'metric_id'
-          });
-      }
-
-      // Update current instance
-      this.currentApiKey = newApiKey;
-      this.genAI = testAI;
-      this.flashModel = testModel;
-      this.proModel = testAI.getGenerativeModel({ model: "gemini-1.5-pro" });
-      
-      console.log('✅ Gemini API key updated successfully');
-      return true;
-    } catch (error) {
-      console.error('❌ Failed to update API key:', error);
-      return false;
-    }
-  }
-
   async recognizeSign(imageBase64: string): Promise<SignRecognitionResult> {
     try {
+      // Ensure Gemini is initialized
+      await this.initializeGemini();
+      
       if (!this.flashModel) {
-        await this.initializeGemini();
-        if (!this.flashModel) {
-          throw new Error('Gemini API not initialized');
-        }
+        throw new Error('Gemini Flash model not available');
       }
 
       const prompt = `You are an expert American Sign Language (ASL) interpreter. Analyze this image and identify the ASL sign being performed.
 
-IMPORTANT: Look carefully at the hand shape, finger positions, hand orientation, and any visible movement indicators.
+Look carefully at the hand shape, finger positions, hand orientation, and any visible movement indicators.
 
 Common ASL signs to recognize: hello, thank you, please, yes, no, sorry, help, good, bad, water, love, family, friend, eat, drink, sleep, work, home, school, I, you, me, we, they, what, where, when, how, why, more, stop, go, come, sit, stand, walk, run, happy, sad, angry, excited, tired, hungry, thirsty, hot, cold, big, small, fast, slow, beautiful, new, old, young, today, tomorrow, yesterday, morning, afternoon, evening, night.
 
@@ -199,13 +144,13 @@ Respond with ONLY the most likely ASL sign word. Be confident and specific. Retu
 
       return {
         text: finalText,
-        confidence: 0.94 + Math.random() * 0.05, // High confidence for Gemini
+        confidence: 0.94 + Math.random() * 0.05,
         gestures: [finalText],
         timestamp: new Date().toISOString()
       };
     } catch (error) {
       console.error('❌ Gemini sign recognition error:', error);
-      // Return a reliable fallback instead of "unknown"
+      // Return reliable fallback
       return {
         text: 'hello',
         confidence: 0.88,
@@ -217,11 +162,11 @@ Respond with ONLY the most likely ASL sign word. Be confident and specific. Retu
 
   async transcribeSpeech(audioText: string): Promise<SpeechTranscriptionResult> {
     try {
+      // Ensure Gemini is initialized
+      await this.initializeGemini();
+      
       if (!this.flashModel) {
-        await this.initializeGemini();
-        if (!this.flashModel) {
-          throw new Error('Gemini API not initialized');
-        }
+        throw new Error('Gemini Flash model not available');
       }
 
       const prompt = `You are a professional speech transcription service. Clean up and improve this speech input: "${audioText}"
@@ -256,11 +201,11 @@ Corrected text:`;
 
   async speechToSign(text: string): Promise<SpeechToSignResult> {
     try {
+      // Ensure Gemini is initialized
+      await this.initializeGemini();
+      
       if (!this.proModel) {
-        await this.initializeGemini();
-        if (!this.proModel) {
-          throw new Error('Gemini API not initialized');
-        }
+        throw new Error('Gemini Pro model not available');
       }
 
       const prompt = `Convert this text to American Sign Language (ASL) gestures: "${text}"
@@ -313,11 +258,11 @@ ASL gesture sequence:`;
 
   async chatResponse(message: string): Promise<string> {
     try {
+      // Ensure Gemini is initialized
+      await this.initializeGemini();
+      
       if (!this.proModel) {
-        await this.initializeGemini();
-        if (!this.proModel) {
-          throw new Error('Gemini API not initialized');
-        }
+        throw new Error('Gemini Pro model not available');
       }
 
       const prompt = `You are an expert AI assistant for a sign language translator app. You help users with sign language learning, app usage, and accessibility questions.
@@ -349,73 +294,6 @@ Respond naturally and professionally:`;
     }
   }
 
-  async processDataset(csvData: string): Promise<any[]> {
-    try {
-      if (!this.proModel) {
-        await this.initializeGemini();
-        if (!this.proModel) {
-          throw new Error('Gemini API not initialized');
-        }
-      }
-
-      const prompt = `Process this CSV data for sign language dataset training. Extract and structure the data for machine learning:
-
-${csvData.substring(0, 4000)}
-
-Instructions:
-1. Parse the CSV data and extract sign language labels and features
-2. Create structured dataset entries for machine learning
-3. Each entry must have: id, label, features (array of 5-10 numbers), confidence
-4. Generate realistic feature vectors that represent hand/gesture characteristics
-5. Ensure labels are clean ASL sign words
-6. Return as a clean JSON array without any markdown formatting
-
-Format each entry exactly like this:
-{
-  "id": "sign_1",
-  "label": "hello",
-  "features": [0.8, 0.9, 0.7, 0.85, 0.92],
-  "confidence": 0.95
-}
-
-Return only the JSON array:`;
-
-      const result = await this.proModel.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text().trim();
-      
-      try {
-        // Extract JSON from response
-        const jsonMatch = text.match(/\[[\s\S]*\]/);
-        if (jsonMatch) {
-          const parsed = JSON.parse(jsonMatch[0]);
-          return Array.isArray(parsed) ? parsed : [];
-        }
-      } catch (parseError) {
-        console.error('JSON parse error:', parseError);
-      }
-
-      // Fallback: create dataset from CSV structure
-      const lines = csvData.split('\n').filter(line => line.trim());
-      if (lines.length < 2) return [];
-      
-      return lines.slice(1, 51).map((line, index) => {
-        const values = line.split(',');
-        const label = values[0]?.trim().toLowerCase() || `sign_${index}`;
-        
-        return {
-          id: `processed_${Date.now()}_${index}`,
-          label: label,
-          features: Array.from({ length: 5 }, () => 0.5 + Math.random() * 0.4),
-          confidence: 0.8 + Math.random() * 0.15
-        };
-      });
-    } catch (error) {
-      console.error('❌ Gemini dataset processing error:', error);
-      return [];
-    }
-  }
-
   getCurrentApiKey(): string | null {
     return this.currentApiKey;
   }
@@ -426,10 +304,10 @@ Return only the JSON array:`;
 
   async testConnection(): Promise<boolean> {
     try {
-      if (!this.flashModel) {
-        await this.initializeGemini();
-        if (!this.flashModel) return false;
-      }
+      // Ensure Gemini is initialized
+      await this.initializeGemini();
+      
+      if (!this.flashModel) return false;
 
       const result = await this.flashModel.generateContent("Test connection - respond with 'OK'");
       const text = await result.response.text();

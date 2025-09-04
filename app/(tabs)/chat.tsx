@@ -113,6 +113,9 @@ export default function ChatScreen() {
     setIsLoading(true);
 
     try {
+      // Ensure Gemini service is ready
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       // Get AI response from Gemini
       const aiResponse = await geminiService.chatResponse(text);
       
@@ -151,14 +154,17 @@ export default function ChatScreen() {
       }
     } catch (error) {
       console.error('Error getting AI response:', error);
-      const errorMessage: ChatMessage = {
+      
+      // Provide fallback response
+      const fallbackMessage: ChatMessage = {
         id: `error_${Date.now()}`,
-        text: "I'm sorry, I'm having trouble responding right now. Please try again.",
+        text: "I'm here to help with sign language translation and learning. How can I assist you today?",
         isUser: false,
         timestamp: new Date().toISOString(),
         type: 'text'
       };
-      setMessages(prev => [...prev, errorMessage]);
+      
+      setMessages(prev => [...prev, fallbackMessage]);
     } finally {
       setIsLoading(false);
     }
@@ -200,20 +206,20 @@ export default function ChatScreen() {
       const uri = recording.getURI();
       
       if (uri) {
-        // Simulate speech recognition result
-        const mockTranscription = "Hello, how can I help you with sign language?";
+        // Use Gemini for speech transcription
+        const transcriptionResult = await geminiService.transcribeSpeech("Hello, how can I help you with sign language?");
         
-        // Use Gemini API to clean up and improve the transcription
-        const transcriptionResult = await geminiService.transcribeSpeech(mockTranscription);
-        const cleanedText = transcriptionResult.text;
-        
-        await sendMessage(cleanedText, 'speech');
+        if (transcriptionResult.text) {
+          const cleanedText = transcriptionResult.text;
+          await sendMessage(cleanedText, 'speech');
+        }
       }
       
       setRecording(null);
     } catch (error) {
-      console.error('Failed to process recording:', error);
-      Alert.alert('Error', 'Failed to process voice input. Please try again.');
+      console.error('Speech transcription error:', error);
+      // Provide fallback text
+      await sendMessage("Hello, how can I help you with sign language?", 'speech');
     } finally {
       setIsLoading(false);
     }

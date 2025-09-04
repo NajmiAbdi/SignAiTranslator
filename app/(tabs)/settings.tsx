@@ -208,9 +208,8 @@ export default function SettingsScreen() {
       }
       
       // Import required modules dynamically
-      import * as FileSystem from 'expo-file-system';
-      import * as Sharing from 'expo-sharing';
-
+      const { default: * as FileSystem } = await import('expo-file-system');
+      const { default: * as Sharing } = await import('expo-sharing');
       
       // Create comprehensive document content
       const docContent = `SIGN LANGUAGE TRANSLATOR - USER DATA EXPORT
@@ -288,30 +287,27 @@ support@signlanguagetranslator.com
 © 2025 AI Translation Systems. All rights reserved.`;
       
       const fileName = `SignLanguageData_${new Date().toISOString().split('T')[0]}.doc`;
-const fileUri = FileSystem.documentDirectory + fileName;
-await FileSystem.writeAsStringAsync(fileUri, docContent);
-
-if (await Sharing.isAvailableAsync()) {
-  await Sharing.shareAsync(fileUri, {
-    mimeType: 'text/plain',
-    dialogTitle: 'Export Sign Language Data',
-    UTI: 'public.plain-text'
-  });
-} else {
-  Alert.alert('Export Complete', `Your data has been exported as ${fileName}`);
-}
-
-Alert.alert(
-  'Export Successful',
-  `Your data has been exported as "${fileName}" and is ready for download.`
-);
-
-} catch (error) {
-  console.error('Export error:', error);
-  Alert.alert('Export Failed', 'Unable to export data. Please try again or contact support.');
-} finally {
-  setLoading(false);
-}
+      const fileUri = FileSystem.documentDirectory + fileName;
+      await FileSystem.writeAsStringAsync(fileUri, docContent);
+      
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(fileUri, {
+          mimeType: 'text/plain',
+          dialogTitle: 'Export Sign Language Data',
+          UTI: 'public.plain-text'
+        });
+      } else {
+        Alert.alert('Export Complete', `Data exported to: ${fileName}`);
+        `Your data has been exported as ${fileName}`,
+      
+      Alert.alert('Export Successful', `Your data has been exported as "${fileName}" and is ready for download.`);
+    } catch (error) {
+      console.error('Export error:', error);
+      Alert.alert('Export Failed', 'Unable to export data. Please try again or contact support.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const showPrivacyPolicy = () => {
     Alert.alert(

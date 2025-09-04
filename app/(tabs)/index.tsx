@@ -8,7 +8,6 @@ import { datasetService } from '../../services/datasetService';
 import { RotateCcw, Play, Square, Volume2 } from 'lucide-react-native';
 import { aiService } from '../../services/aiService';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
-import { datasetService } from '../../services/datasetService';
 
 // Expo docs: sug onCameraReady kahor takePictureAsync + isticmaal useCameraPermissions.  :contentReference[oaicite:1]{index=1}
 
@@ -84,12 +83,7 @@ export default function CameraScreen() {
         const datasetMatch = await datasetService.findSignInDataset(mockFeatures);
         
         if (datasetMatch) {
-          setRecognitionResult({
-            text: datasetMatch.label,
-            confidence: datasetMatch.confidence,
-            gestures: [datasetMatch.label],
-            timestamp: new Date().toISOString()
-          });
+          setTranslatedText(datasetMatch.label);
           
           // Play audio for recognized sign
           await playAudio(datasetMatch.label);
@@ -142,11 +136,9 @@ export default function CameraScreen() {
             message: translatedText,
             type: 'sign',
             metadata: { 
-              confidence: result.confidence, 
-                confidence: result.confidence,
-                source: 'gemini_api'
-              timestamp: result.timestamp,
-              source: result.confidence > 0.80 ? 'dataset' : 'gemini_api'
+              confidence: result.confidence,
+              source: 'gemini_api',
+              timestamp: result.timestamp
             },
           });
         } catch (dbError) {
@@ -155,12 +147,6 @@ export default function CameraScreen() {
       }
     } catch (e: any) {
       console.error('Recording error:', e);
-      setRecognitionResult({
-        text: 'hello',
-        confidence: 0.85,
-        gestures: ['hello'],
-        timestamp: new Date().toISOString()
-      });
       Alert.alert('Error', 'Failed to capture image. Please try again.');
       setTranslatedText('hello'); // Provide fallback instead of empty
     } finally {
@@ -170,12 +156,13 @@ export default function CameraScreen() {
 
   const stopCapture = () => setIsCapturing(false);
 
-  const playAudio = () => {
-    if (!translatedText) return;
-    if (translatedText === 'Analyzing sign...' || translatedText === 'Processing...') return;
+  const playAudio = (text?: string) => {
+    const textToSpeak = text || translatedText;
+    if (!textToSpeak) return;
+    if (textToSpeak === 'Analyzing sign...' || textToSpeak === 'Processing...') return;
     
     try {
-      Speech.speak(translatedText, { 
+      Speech.speak(textToSpeak, { 
         language: 'en', 
         pitch: 1.0, 
         rate: 0.85,
@@ -201,7 +188,7 @@ export default function CameraScreen() {
       {/* Overlays banaanka CameraView — maadaama CameraView children si fiican u taageerin. :contentReference[oaicite:2]{index=2} */}
       <View style={styles.controlsContainer}>
         <TouchableOpacity style={styles.flipButton} onPress={toggleCameraFacing}>
-          <View style={[styles.permissionContainer, { paddingTop: 60 }]}>
+          <RotateCcw color="#FFFFFF" size={24} />
         </TouchableOpacity>
       </View>
 
@@ -209,7 +196,7 @@ export default function CameraScreen() {
         {!!translatedText && (
           <View style={styles.translationContainer}>
             <Text style={styles.translatedText}>{translatedText}</Text>
-            <TouchableOpacity style={styles.playButton} onPress={playAudio}>
+            <TouchableOpacity style={styles.playButton} onPress={() => playAudio()}>
               <Volume2 color="#3B82F6" size={20} />
             </TouchableOpacity>
           </View>

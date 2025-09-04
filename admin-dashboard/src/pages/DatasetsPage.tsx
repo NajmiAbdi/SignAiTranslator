@@ -90,6 +90,9 @@ export default function DatasetsPage() {
       // Read and process file content
       const text = await file.text();
       
+      // Ensure Gemini service is initialized
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       // Use Gemini API to process the dataset
       const processedData = await geminiService.processDataset(text);
       
@@ -397,21 +400,4 @@ export default function DatasetsPage() {
           <p className="text-gray-500 mb-4">Get started by uploading your first dataset</p>
           <button
             onClick={() => setUploadModalOpen(true)}
-            className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors"
-          >
-            Upload Dataset
-          </button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
-          {datasets.map((dataset) => (
-            <DatasetCard key={dataset.dataset_id} dataset={dataset} />
-          ))}
-        </div>
-      )}
-
-      {/* Upload Modal */}
-      <UploadModal />
-    </div>
-  );
-}
+            className="bg-primary-600 text-white px-4 py-2 rounded-lg

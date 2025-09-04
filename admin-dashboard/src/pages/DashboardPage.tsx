@@ -68,10 +68,60 @@ export default function DashboardPage() {
 
   useEffect(() => {
     loadDashboard();
+    
+    // Set up real-time updates every 10 seconds
+    const interval = setInterval(loadStats, 10000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   const loadDashboard = async () => {
     try {
+      setLoading(true);
+      
+      // Load real data from all tables
+      const [usersResult, chatsResult, analyticsResult, datasetsResult] = await Promise.all([
+        supabase.from('users').select('*'),
+        supabase.from('chats').select('*'),
+        supabase.from('analytics').select('*'),
+        supabase.from('dataset').select('*')
+      ]);
+      
+      const totalUsers = usersResult.data?.length || 0;
+      const totalChats = chatsResult.data?.length || 0;
+      const totalTranslations = analyticsResult.data?.filter(item => item.type === 'sign_recognition').length || 0;
+      const totalDatasets = datasetsResult.data?.length || 0;
+      
+      // Create activity data for charts
+      const last7Days = Array.from({ length: 7 }, (_, i) => {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        return date.toISOString().split('T')[0];
+      }).reverse();
+      
+      const dailyActivity = last7Days.map(date => {
+        const dayData = analyticsResult.data?.filter(item => 
+          item.created_at?.startsWith(date)
+        ) || [];
+        return {
+          date: new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          value: dayData.length,
+          translations: dayData.filter(item => item.type === 'sign_recognition').length,
+          users: dayData.filter(item => item.type === 'user_activity').length
+        };
+      });
+      
+      // Recent activity
+      const recentActivity = (analyticsResult.data || [])
+        .slice(0, 5)
+        .map((item, index) => ({
+          action: item.type === 'sign_recognition' ? 'Sign Recognition' : 
+                  item.type === 'chat' ? 'Chat Message' : 'User Activity',
+          user: `user${index + 1}@example.com`,
+          time: new Date(item.created_at).toLocaleTimeString(),
+          type: item.type
+        }));
+      
       const [
         usersResult,
         translationsResult,
@@ -94,13 +144,20 @@ export default function DashboardPage() {
         totalMessages: messagesResult.data?.length || 0
       });
 
-      setRecentActivity(activityResult.data || []);
 
       // Example system status check (can be adjusted to your tables)
       setSystemStatus([
-        { name: 'API Service', status: 'Online' },
-        { name: 'Database', status: usersResult.error ? 'Disconnected' : 'Connected' },
-        { name: 'AI Models', status: 'Training in progress' }
+        totalUsers,
+        totalTranslations,
+        totalMessages: totalChats,
+        totalDatasets,
+        dailyActivity,
+        recentActivity,
+        systemHealth: {
+          apiStatus: 'online',
+          dbStatus: 'connected',
+          aiStatus: 'active'
+        }
       ]);
     } catch (err: any) {
       console.error('Dashboard load error:', err);

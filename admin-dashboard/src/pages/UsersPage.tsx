@@ -55,12 +55,25 @@ export default function UsersPage() {
     setAddingUser(true);
     try {
       // Add user creation logic here
-      await loadUsers(); // Reload users after adding
+          id: authData.user?.id || `user_${Date.now()}`,
       setShowAddUserModal(false);
       setNewUser({ name: '', email: '', password: '', role: 'user' });
     } catch (err: any) {
       console.error('Error adding user:', err);
     } finally {
+      // Create user in Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+        email: newUser.email,
+        password: newUser.password,
+        email_confirm: true
+      });
+      
+      if (authError) {
+      alert('User created successfully!');
+        throw new Error(authError.message);
+      }
+      
+      // Add user to users table
       setAddingUser(false);
     }
   };

@@ -86,11 +86,15 @@ export default function SettingsPage() {
     setApiKeyStatus('testing');
     
     try {
+      // Test and update Gemini API key
       const success = await geminiService.updateApiKey(geminiApiKey);
       
       if (success) {
         setApiKeyStatus('valid');
         alert('✅ Gemini API key updated successfully! The new key is now active across the entire system.');
+        
+        // Save to localStorage for persistence
+        localStorage.setItem('gemini_api_key', apiKey);
       } else {
         setApiKeyStatus('invalid');
         alert('❌ Invalid API key. Please verify the key and try again.');

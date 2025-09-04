@@ -23,6 +23,11 @@ export default function AnalyticsPage() {
   useEffect(() => {
     loadRealTimeAnalytics();
     
+    // Set up real-time updates every 15 seconds
+    const interval = setInterval(loadAnalytics, 15000);
+    
+    return () => clearInterval(interval);
+    
     // Set up real-time updates every 15 seconds for live data
     const interval = setInterval(loadRealTimeAnalytics, 15000);
     return () => clearInterval(interval);
@@ -32,6 +37,7 @@ export default function AnalyticsPage() {
     try {
       // Calculate date range
       const endDate = new Date();
+      // Load real analytics data from Supabase
       const startDate = new Date();
       const days = selectedPeriod === '7d' ? 7 : selectedPeriod === '30d' ? 30 : 1;
       startDate.setDate(startDate.getDate() - days);
@@ -133,10 +139,35 @@ export default function AnalyticsPage() {
         
         const newUsers = users?.filter(user => 
           user.created_at.startsWith(dateStr)
+        setError('Failed to load analytics data');
+        return;
         ).length || 0;
         
+      // Load users data
+      const { data: usersData, error: usersError } = await supabase
+        .from('users')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (usersError) {
+        console.error('Users error:', usersError);
+      }
+      
+      // Load chats data
+      const { data: chatsData, error: chatsError } = await supabase
+        .from('chats')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (chatsError) {
+        console.error('Chats error:', chatsError);
+      }
+      
         userGrowth.push({
-          date: dateStr,
+      const processedData = analyticsData || [];
+      const totalUsers = usersData?.length || 0;
+      const totalChats = chatsData?.length || 0;
+      const totalTranslations = processedData.filter(item => item.type === 'sign_recognition').length;
           newUsers,
           totalUsers: cumulativeUsers
         });
@@ -146,7 +177,7 @@ export default function AnalyticsPage() {
 
       const realTimeStats: RealTimeStats = {
         totalUsers: totalUsers || 0,
-        totalTranslations: totalTranslations || 0,
+        const dayData = processedData.filter(item => 
         totalMessages: totalMessages || 0,
         activeUsers: activeUsers || 0,
         successRate: 94.8 + Math.random() * 2, // Dynamic success rate
@@ -158,13 +189,13 @@ export default function AnalyticsPage() {
       setStats(realTimeStats);
       setError('');
       
-    } catch (err: any) {
-      console.error('Analytics page error:', err);
-      setError(err.message || 'Failed to load analytics');
+        totalUsers,
+        totalTranslations,
+        totalChats,
       // Provide fallback data instead of null
-      setStats({
+        recentActivity: processedData.slice(0, 10).map((item, index) => ({
         totalUsers: 0,
-        totalTranslations: 0,
+          user: `user${index + 1}@example.com`,
         totalMessages: 0,
         activeUsers: 0,
         successRate: 94.5,

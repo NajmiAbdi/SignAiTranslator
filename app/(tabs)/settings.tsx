@@ -297,7 +297,6 @@ support@signlanguagetranslator.com
           UTI: 'public.plain-text'
         });
       } else {
-        Alert.alert('Export Complete', `Data exported to: ${fileName}`);
         `Your data has been exported as ${fileName}`,
       
       Alert.alert('Export Successful', `Your data has been exported as "${fileName}" and is ready for download.`);

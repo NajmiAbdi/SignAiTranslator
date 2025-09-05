@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Switch, TouchableOpacity, Alert, useColorScheme, Appearance } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Switch, TouchableOpacity, Alert, useColorScheme, Appearance, Platform } from 'react-native';
 import { Bell, Globe, Moon, Shield, CircleHelp as HelpCircle, Info, ChevronRight, Trash2, Download } from 'lucide-react-native';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -297,9 +297,8 @@ support@signlanguagetranslator.com
           UTI: 'public.plain-text'
         });
       } else {
-        `Your data has been exported as ${fileName}`,
-      
-      Alert.alert('Export Successful', `Your data has been exported as "${fileName}" and is ready for download.`);
+        Alert.alert('Export Successful', `Your data has been exported as "${fileName}" and is ready for download.`);
+      }
     } catch (error) {
       console.error('Export error:', error);
       Alert.alert('Export Failed', 'Unable to export data. Please try again or contact support.');

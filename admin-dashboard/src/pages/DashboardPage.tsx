@@ -84,7 +84,7 @@ export default function DashboardPage() {
         supabase.from('users').select('*'),
         supabase.from('chats').select('*'),
         supabase.from('analytics').select('*'),
-        supabase.from('dataset').select('*')
+        supabase.from('datasets').select('*')
       ]);
       
       const totalUsers = usersResult.data?.length || 0;

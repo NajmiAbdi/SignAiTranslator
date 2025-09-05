@@ -50,7 +50,7 @@ class DatasetService {
       }
 
       const { data, error } = await supabase
-        .from('dataset')
+        .from('datasets')
         .select('*')
         .order('created_at', { ascending: false });
 
@@ -119,7 +119,7 @@ class DatasetService {
       }
 
       const { error } = await supabase
-        .from('dataset')
+        .from('datasets')
         .insert([{
           id: entry.id,
           label: entry.label,

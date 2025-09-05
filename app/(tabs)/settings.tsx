@@ -299,6 +299,7 @@ support@signlanguagetranslator.com
       } else {
         Alert.alert('Export Successful', `Your data has been exported as "${fileName}" and is ready for download.`);
       }
+    }
     } catch (error) {
       console.error('Export error:', error);
       Alert.alert('Export Failed', 'Unable to export data. Please try again or contact support.');

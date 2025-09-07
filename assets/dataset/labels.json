@@ -1,7 +1,7 @@
 [
-  { "file": "Hello/hello1.jpg", "label": "Hello" },
-  { "file": "Yes/yes1.jpg", "label": "Yes" },
-  { "file": "No/no1.jpg", "label": "No" },
-  { "file": "ThankYou/thankyou1.jpg", "label": "Thank You" },
-  { "file": "Help/help1.jpg", "label": "Help" }
+  { "file": "a/a.jpg", "label": "a" },
+  { "file": "b/b.jpg", "label": "b" },
+  { "file": "c/c.webp", "label": "c" },
+  { "file": "d/d.webp", "label": "d" },
+  { "file": "e/e.jpg", "label": "e" }
 ]

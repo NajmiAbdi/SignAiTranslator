@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { Image } from 'expo-image';
 
 export interface DatasetEntry {
   id: string;
@@ -6,39 +7,45 @@ export interface DatasetEntry {
   features: number[];
   confidence: number;
   created_at?: string;
+  imagePath?: string;
 }
 
 class DatasetService {
   private localDataset: DatasetEntry[] = [
     {
-      id: 'hello_1',
-      label: 'hello',
+      id: 'a_1',
+      label: 'a',
       features: [0.8, 0.9, 0.7, 0.85, 0.92],
-      confidence: 0.95
+      confidence: 0.95,
+      imagePath: 'assets/dataset/a/a.jpg'
     },
     {
-      id: 'thank_you_1',
-      label: 'thank you',
+      id: 'b_1',
+      label: 'b',
       features: [0.7, 0.8, 0.9, 0.75, 0.88],
-      confidence: 0.93
+      confidence: 0.93,
+      imagePath: 'assets/dataset/b/b.jpg'
     },
     {
-      id: 'please_1',
-      label: 'please',
+      id: 'c_1',
+      label: 'c',
       features: [0.9, 0.7, 0.8, 0.82, 0.91],
-      confidence: 0.94
+      confidence: 0.94,
+      imagePath: 'assets/dataset/c/c.webp'
     },
     {
-      id: 'yes_1',
-      label: 'yes',
+      id: 'd_1',
+      label: 'd',
       features: [0.85, 0.92, 0.78, 0.89, 0.86],
-      confidence: 0.96
+      confidence: 0.96,
+      imagePath: 'assets/dataset/d/d.webp'
     },
     {
-      id: 'no_1',
-      label: 'no',
+      id: 'e_1',
+      label: 'e',
       features: [0.76, 0.84, 0.91, 0.73, 0.87],
-      confidence: 0.92
+      confidence: 0.92,
+      imagePath: 'assets/dataset/e/e.jpg'
     }
   ];
 
@@ -88,7 +95,7 @@ class DatasetService {
       // Simple similarity matching
       for (const entry of dataset) {
         const similarity = this.calculateSimilarity(features, entry.features);
-        if (similarity > 0.8) {
+        if (similarity > 0.75) {
           return entry;
         }
       }
@@ -98,6 +105,42 @@ class DatasetService {
       console.error('Error finding sign in dataset:', error);
       return null;
     }
+  }
+
+  async recognizeSign(features: number[]): Promise<{ label: string; confidence: number }> {
+    try {
+      const match = await this.findSignInDataset(features);
+      if (match) {
+        return {
+          label: match.label,
+          confidence: match.confidence
+        };
+      }
+      
+      return {
+        label: 'unknown',
+        confidence: 0.0
+      };
+    } catch (error) {
+      console.error('Error recognizing sign:', error);
+      return {
+        label: 'unknown',
+        confidence: 0.0
+      };
+    }
+  }
+
+  getSignImage(label: string): string | null {
+    const entry = this.localDataset.find(item => item.label.toLowerCase() === label.toLowerCase());
+    return entry?.imagePath || null;
+  }
+
+  getDatasetStats() {
+    return {
+      totalSigns: this.localDataset.length,
+      uniqueLabels: new Set(this.localDataset.map(item => item.label)).size,
+      averageConfidence: this.localDataset.reduce((sum, item) => sum + item.confidence, 0) / this.localDataset.length
+    };
   }
 
   private calculateSimilarity(features1: number[], features2: number[]): number {

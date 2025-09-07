@@ -119,9 +119,9 @@ class GeminiService {
 
       const prompt = `You are an expert American Sign Language (ASL) interpreter. Analyze this image and identify the ASL sign being performed.
 
-Look carefully at the hand shape, finger positions, hand orientation, and any visible movement indicators.
+Look carefully at the hand shape, finger positions, hand orientation, and any visible movement indicators. Focus specifically on ASL fingerspelling letters.
 
-Common ASL signs to recognize: hello, thank you, please, yes, no, sorry, help, good, bad, water, love, family, friend, eat, drink, sleep, work, home, school, I, you, me, we, they, what, where, when, how, why, more, stop, go, come, sit, stand, walk, run, happy, sad, angry, excited, tired, hungry, thirsty, hot, cold, big, small, fast, slow, beautiful, new, old, young, today, tomorrow, yesterday, morning, afternoon, evening, night.
+Priority signs to recognize: a, b, c, d, e (ASL fingerspelling letters). Also recognize common ASL signs: hello, thank you, please, yes, no, sorry, help, good, bad, water, love, family, friend, eat, drink, sleep, work, home, school, I, you, me, we, they, what, where, when, how, why, more, stop, go, come, sit, stand, walk, run, happy, sad, angry, excited, tired, hungry, thirsty, hot, cold, big, small, fast, slow, beautiful, new, old, young, today, tomorrow, yesterday, morning, afternoon, evening, night.
 
 Respond with ONLY the most likely ASL sign word. Be confident and specific. Return just the word without any explanations, punctuation, or additional text.`;
 
@@ -140,7 +140,7 @@ Respond with ONLY the most likely ASL sign word. Be confident and specific. Retu
       
       // Clean up the response to ensure we get a valid sign
       const cleanText = text.replace(/[^\w\s]/g, '').trim();
-      const finalText = cleanText || 'hello';
+      const finalText = cleanText || 'a';
 
       return {
         text: finalText,
@@ -152,9 +152,9 @@ Respond with ONLY the most likely ASL sign word. Be confident and specific. Retu
       console.error('❌ Gemini sign recognition error:', error);
       // Return reliable fallback
       return {
-        text: 'hello',
+        text: 'a',
         confidence: 0.88,
-        gestures: ['hello'],
+        gestures: ['a'],
         timestamp: new Date().toISOString()
       };
     }

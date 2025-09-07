@@ -3,8 +3,10 @@ import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert 
 import { Send, Mic, MicOff, Volume2, User, Bot } from 'lucide-react-native';
 import { Audio } from 'expo-av';
 import * as Speech from 'expo-speech';
+import { Image } from 'expo-image';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { geminiService } from '../../services/geminiService';
+import { datasetService } from '../../services/datasetService';
 
 interface ChatMessage {
   id: string;
@@ -12,6 +14,7 @@ interface ChatMessage {
   isUser: boolean;
   timestamp: string;
   type: 'text' | 'speech' | 'sign';
+  signImage?: string;
 }
 
 export default function ChatScreen() {
@@ -100,12 +103,17 @@ export default function ChatScreen() {
   const sendMessage = async (text: string, type: 'text' | 'speech' = 'text') => {
     if (!text.trim()) return;
 
+    // Check if the message is a single letter that exists in our dataset
+    const cleanText = text.trim().toLowerCase();
+    const signImage = datasetService.getSignImage(cleanText);
+
     const userMessage: ChatMessage = {
       id: `user_${Date.now()}`,
       text: text.trim(),
       isUser: true,
       timestamp: new Date().toISOString(),
-      type
+      type,
+      signImage: signImage || undefined
     };
 
     setMessages(prev => [...prev, userMessage]);
@@ -310,12 +318,21 @@ export default function ChatScreen() {
               </Text>
             </View>
           </View>
-        )}
-      </ScrollView>
-
-      <View style={styles.inputContainer}>
-        <TextInput
-          style={styles.textInput}
+          <View style={styles.messageContent}>
+            {message.signImage && (
+              <Image
+                source={require(`../../${message.signImage}`)}
+                style={styles.signImage}
+                contentFit="contain"
+              />
+            )}
+            <Text style={[
+              styles.messageText,
+              message.isUser ? styles.userText : styles.botText
+            ]}>
+              {message.text}
+            </Text>
+          </View>
           value={inputText}
           onChangeText={setInputText}
           placeholder="Type your message..."
@@ -419,10 +436,18 @@ const styles = StyleSheet.create({
     marginRight: 8,
     marginTop: 2,
   },
+  messageContent: {
+    flex: 1,
+  },
+  signImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
   messageText: {
     fontSize: 16,
     lineHeight: 22,
-    flex: 1,
   },
   userText: {
     color: '#FFFFFF',

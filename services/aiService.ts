@@ -31,7 +31,7 @@ class AIService {
       // Check local dataset first
       const datasetResult = await datasetService.recognizeSign(mockFeatures);
       
-      if (datasetResult.confidence > 0.80 && datasetResult.label !== 'unknown') {
+      if (datasetResult.confidence > 0.75 && datasetResult.label !== 'unknown') {
         console.log('✅ Dataset match found:', datasetResult.label);
         return {
           text: datasetResult.label,
@@ -55,9 +55,9 @@ class AIService {
       console.error('Sign recognition error:', error);
       // Return a more reliable fallback
       return {
-        text: 'hello',
+        text: 'a',
         confidence: 0.80,
-        gestures: ['hello'],
+        gestures: ['a'],
         timestamp: new Date().toISOString()
       };
     }

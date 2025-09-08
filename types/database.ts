@@ -33,7 +33,7 @@ export interface Database {
           chat_id: string;
           user_id: string;
           message: string;
-          type: 'text' | 'sign' | 'speech';
+          type: 'text' | 'sign' | 'speech' | 'ai_response';
           timestamp: string;
           metadata: any;
         };
@@ -41,13 +41,13 @@ export interface Database {
           chat_id: string;
           user_id: string;
           message: string;
-          type: 'text' | 'sign' | 'speech';
+          type: 'text' | 'sign' | 'speech' | 'ai_response';
           timestamp?: string;
           metadata?: any;
         };
         Update: {
           message?: string;
-          type?: 'text' | 'sign' | 'speech';
+          type?: 'text' | 'sign' | 'speech' | 'ai_response';
           metadata?: any;
         };
       };

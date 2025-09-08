@@ -108,11 +108,19 @@ class GeminiService {
     }
   }
 
+  // Helper si sax ah u soo saaraya text kasta
+  private async getText(result: any): Promise<string> {
+    const resp = (result?.response && typeof result.response.then === 'function')
+      ? await result.response
+      : result.response;
+
+    const txt = typeof resp?.text === 'function' ? resp.text() : '';
+    return (txt ?? '').toString().trim();
+  }
+
   async recognizeSign(imageBase64: string): Promise<SignRecognitionResult> {
     try {
-      // Ensure Gemini is initialized
       await this.initializeGemini();
-      
       if (!this.flashModel) {
         throw new Error('Gemini Flash model not available');
       }
@@ -135,10 +143,7 @@ Respond with ONLY the most likely ASL sign word. Be confident and specific. Retu
         }
       ]);
 
-      const response = await result.response;
-      const text = response.text().trim().toLowerCase();
-      
-      // Clean up the response to ensure we get a valid sign
+      const text = (await this.getText(result)).toLowerCase();
       const cleanText = text.replace(/[^\w\s]/g, '').trim();
       const finalText = cleanText || 'a';
 
@@ -150,7 +155,6 @@ Respond with ONLY the most likely ASL sign word. Be confident and specific. Retu
       };
     } catch (error) {
       console.error('❌ Gemini sign recognition error:', error);
-      // Return reliable fallback
       return {
         text: 'a',
         confidence: 0.88,
@@ -162,9 +166,7 @@ Respond with ONLY the most likely ASL sign word. Be confident and specific. Retu
 
   async transcribeSpeech(audioText: string): Promise<SpeechTranscriptionResult> {
     try {
-      // Ensure Gemini is initialized
       await this.initializeGemini();
-      
       if (!this.flashModel) {
         throw new Error('Gemini Flash model not available');
       }
@@ -183,8 +185,7 @@ Input text: ${audioText}
 Corrected text:`;
 
       const result = await this.flashModel.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text().trim();
+      const text = await this.getText(result);
 
       return {
         text: text || audioText,
@@ -201,9 +202,7 @@ Corrected text:`;
 
   async speechToSign(text: string): Promise<SpeechToSignResult> {
     try {
-      // Ensure Gemini is initialized
       await this.initializeGemini();
-      
       if (!this.proModel) {
         throw new Error('Gemini Pro model not available');
       }
@@ -229,9 +228,8 @@ Text to convert: ${text}
 ASL gesture sequence:`;
 
       const result = await this.proModel.generateContent(prompt);
-      const response = await result.response;
-      const gestureText = response.text().trim();
-      
+      const gestureText = await this.getText(result);
+
       const animations = gestureText
         .split(',')
         .map(g => g.trim().toLowerCase())
@@ -258,9 +256,7 @@ ASL gesture sequence:`;
 
   async chatResponse(message: string): Promise<string> {
     try {
-      // Ensure Gemini is initialized
       await this.initializeGemini();
-      
       if (!this.proModel) {
         throw new Error('Gemini Pro model not available');
       }
@@ -284,8 +280,7 @@ Instructions:
 Respond naturally and professionally:`;
 
       const result = await this.proModel.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text().trim();
+      const text = await this.getText(result);
       
       return text || "I'm here to help with sign language translation and learning. How can I assist you today?";
     } catch (error) {
@@ -304,13 +299,11 @@ Respond naturally and professionally:`;
 
   async testConnection(): Promise<boolean> {
     try {
-      // Ensure Gemini is initialized
       await this.initializeGemini();
-      
       if (!this.flashModel) return false;
 
       const result = await this.flashModel.generateContent("Test connection - respond with 'OK'");
-      const text = await result.response.text();
+      const text = await this.getText(result);
       return text.includes('OK') || text.length > 0;
     } catch (error) {
       console.error('❌ Gemini connection test failed:', error);

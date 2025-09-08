@@ -19,6 +19,8 @@ class DatasetService {
          "The letter is not clear. Please make sure your hand gesture is visible and try again.";
 }
 
+}
+
 export const datasetService = new DatasetService();
 
 // ==================== GeminiService ====================

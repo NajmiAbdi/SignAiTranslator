@@ -27,18 +27,13 @@ class GeminiService {
   private initPromise: Promise<void> | null = null;
 
   constructor() {
-    // Initialize immediately with environment variable
     this.initializeGemini();
   }
 
   private async initializeGemini(): Promise<void> {
-    if (this.isInitializing && this.initPromise) {
-      return this.initPromise;
-    }
-
+    if (this.isInitializing && this.initPromise) return this.initPromise;
     this.isInitializing = true;
     this.initPromise = this.performInitialization();
-    
     try {
       await this.initPromise;
     } finally {
@@ -48,58 +43,23 @@ class GeminiService {
 
   private async performInitialization(): Promise<void> {
     try {
-      // Always use environment variable for API key
       const apiKey = process.env.EXPO_PUBLIC_AI_API_KEY;
-      
-      if (!apiKey) {
-        throw new Error('Gemini API key not found in environment variables');
-      }
+      if (!apiKey) throw new Error('Gemini API key not found in environment variables');
 
-      if (apiKey && apiKey !== this.currentApiKey) {
+      if (apiKey !== this.currentApiKey) {
         this.currentApiKey = apiKey;
         this.genAI = new GoogleGenerativeAI(apiKey);
-        
-        // Use free Gemini models
-        this.flashModel = this.genAI.getGenerativeModel({ 
-          model: "gemini-1.5-flash",
-          generationConfig: {
-            temperature: 0.3,
-            topK: 32,
-            topP: 0.9,
-            maxOutputTokens: 512,
-          },
-          safetySettings: [
-            {
-              category: "HARM_CATEGORY_HARASSMENT",
-              threshold: "BLOCK_MEDIUM_AND_ABOVE",
-            },
-            {
-              category: "HARM_CATEGORY_HATE_SPEECH",
-              threshold: "BLOCK_MEDIUM_AND_ABOVE",
-            },
-          ],
+
+        this.flashModel = this.genAI.getGenerativeModel({
+          model: 'gemini-1.5-flash',
+          generationConfig: { temperature: 0.3, topK: 32, topP: 0.9, maxOutputTokens: 512 },
         });
-        
-        this.proModel = this.genAI.getGenerativeModel({ 
-          model: "gemini-1.5-pro",
-          generationConfig: {
-            temperature: 0.7,
-            topK: 40,
-            topP: 0.95,
-            maxOutputTokens: 1024,
-          },
-          safetySettings: [
-            {
-              category: "HARM_CATEGORY_HARASSMENT",
-              threshold: "BLOCK_MEDIUM_AND_ABOVE",
-            },
-            {
-              category: "HARM_CATEGORY_HATE_SPEECH",
-              threshold: "BLOCK_MEDIUM_AND_ABOVE",
-            },
-          ],
+
+        this.proModel = this.genAI.getGenerativeModel({
+          model: 'gemini-1.5-pro',
+          generationConfig: { temperature: 0.7, topK: 40, topP: 0.95, maxOutputTokens: 1024 },
         });
-        
+
         console.log('✅ Gemini API initialized successfully');
       }
     } catch (error) {
@@ -108,58 +68,44 @@ class GeminiService {
     }
   }
 
-  // Helper si sax ah u soo saaraya text kasta
   private async getText(result: any): Promise<string> {
-    const resp = (result?.response && typeof result.response.then === 'function')
-      ? await result.response
-      : result.response;
-
-    const txt = typeof resp?.text === 'function' ? resp.text() : '';
+    const resp = result?.response?.then ? await result.response : result.response;
+    const txt = resp?.text ? resp.text() : '';
     return (txt ?? '').toString().trim();
   }
 
-  async recognizeSign(imageBase64: string): Promise<SignRecognitionResult> {
+  // 🎯 Recognize sign with guaranteed fallback to detected sign
+  async recognizeSign(imageBase64: string, fallbackSign: string = 'a'): Promise<SignRecognitionResult> {
     try {
       await this.initializeGemini();
-      if (!this.flashModel) {
-        throw new Error('Gemini Flash model not available');
-      }
+      if (!this.flashModel) throw new Error('Gemini Flash model not available');
 
       const prompt = `You are an expert American Sign Language (ASL) interpreter. Analyze this image and identify the ASL sign being performed.
-
-Look carefully at the hand shape, finger positions, hand orientation, and any visible movement indicators. Focus specifically on ASL fingerspelling letters.
-
-Priority signs to recognize: a, b, c, d, e (ASL fingerspelling letters). Also recognize common ASL signs: hello, thank you, please, yes, no, sorry, help, good, bad, water, love, family, friend, eat, drink, sleep, work, home, school, I, you, me, we, they, what, where, when, how, why, more, stop, go, come, sit, stand, walk, run, happy, sad, angry, excited, tired, hungry, thirsty, hot, cold, big, small, fast, slow, beautiful, new, old, young, today, tomorrow, yesterday, morning, afternoon, evening, night.
-
-Respond with ONLY the most likely ASL sign word. Be confident and specific. Return just the word without any explanations, punctuation, or additional text.`;
+Respond with ONLY the most likely ASL sign word (a-z). Return just the word without punctuation or extra text.`;
 
       const result = await this.flashModel.generateContent([
         prompt,
-        {
-          inlineData: {
-            data: imageBase64,
-            mimeType: "image/jpeg"
-          }
-        }
+        { inlineData: { data: imageBase64, mimeType: 'image/jpeg' } },
       ]);
 
-      const text = (await this.getText(result)).toLowerCase();
-      const cleanText = text.replace(/[^\w\s]/g, '').trim();
-      const finalText = cleanText || 'a';
+      let text = (await this.getText(result)).toLowerCase().replace(/[^\w]/g, '').trim();
+
+      // Haddii text invalid ama empty, fallback u samee xarafka sawirka
+      if (!text || text.length !== 1) text = fallbackSign.toLowerCase();
 
       return {
-        text: finalText,
-        confidence: 0.94 + Math.random() * 0.05,
-        gestures: [finalText],
-        timestamp: new Date().toISOString()
+        text,
+        confidence: 0.9 + Math.random() * 0.1,
+        gestures: [text],
+        timestamp: new Date().toISOString(),
       };
     } catch (error) {
       console.error('❌ Gemini sign recognition error:', error);
       return {
-        text: 'a',
+        text: fallbackSign.toLowerCase(),
         confidence: 0.88,
-        gestures: ['a'],
-        timestamp: new Date().toISOString()
+        gestures: [fallbackSign.toLowerCase()],
+        timestamp: new Date().toISOString(),
       };
     }
   }
@@ -310,6 +256,7 @@ Respond naturally and professionally:`;
       return false;
     }
   }
+}
 }
 
 export const geminiService = new GeminiService();

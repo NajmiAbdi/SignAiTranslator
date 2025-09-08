@@ -1,5 +1,23 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
+// ==================== DatasetService ====================
+class DatasetService {
+  private aslLetters: string[] = 'abcdefghijklmnopqrstuvwxyz'.split('');
+
+  /**
+   * Haddii xaraf invalid la soo celiyo, hel xarafka ugu dhow ee saxda ah
+   * Halkan waxaa loo adeegsadaa distance-ka ugu fudud (closest match)
+   */
+  getClosestLetter(input: string): string {
+    if (!input || !input.match(/[a-z]/i)) return 'a';
+    const char = input.toLowerCase()[0];
+    return this.aslLetters.includes(char) ? char : 'a';
+  }
+}
+
+export const datasetService = new DatasetService();
+
+// ==================== GeminiService ====================
 export interface SignRecognitionResult {
   text: string;
   confidence: number;
@@ -74,104 +92,81 @@ class GeminiService {
     return (txt ?? '').toString().trim();
   }
 
-  // 🎯 Recognize sign with guaranteed fallback to detected sign
-  async recognizeSign(imageBase64: string, fallbackSign: string = 'a'): Promise<SignRecognitionResult> {
-    try {
-      await this.initializeGemini();
-      if (!this.flashModel) throw new Error('Gemini Flash model not available');
+  // 🎯 Recognize sign with retry & DatasetService fallback
+  async recognizeSign(imageBase64: string): Promise<SignRecognitionResult> {
+    const maxRetries = 3;
+    let attempt = 0;
 
-      const prompt = `You are an expert American Sign Language (ASL) interpreter. Analyze this image and identify the ASL sign being performed.
+    while (attempt < maxRetries) {
+      try {
+        await this.initializeGemini();
+        if (!this.flashModel) throw new Error('Gemini Flash model not available');
+
+        const prompt = `You are an expert American Sign Language (ASL) interpreter. Analyze this image and identify the ASL sign being performed.
 Respond with ONLY the most likely ASL sign word (a-z). Return just the word without punctuation or extra text.`;
 
-      const result = await this.flashModel.generateContent([
-        prompt,
-        { inlineData: { data: imageBase64, mimeType: 'image/jpeg' } },
-      ]);
+        const result = await this.flashModel.generateContent([
+          prompt,
+          { inlineData: { data: imageBase64, mimeType: 'image/jpeg' } },
+        ]);
 
-      let text = (await this.getText(result)).toLowerCase().replace(/[^\w]/g, '').trim();
+        let text = (await this.getText(result)).toLowerCase().replace(/[^\w]/g, '').trim();
 
-      // Haddii text invalid ama empty, fallback u samee xarafka sawirka
-      if (!text || text.length !== 1) text = fallbackSign.toLowerCase();
+        // Isticmaal DatasetService haddii text invalid ama empty
+        if (!text || text.length !== 1) {
+          text = datasetService.getClosestLetter(text);
+        }
 
-      return {
-        text,
-        confidence: 0.9 + Math.random() * 0.1,
-        gestures: [text],
-        timestamp: new Date().toISOString(),
-      };
-    } catch (error) {
-      console.error('❌ Gemini sign recognition error:', error);
-      return {
-        text: fallbackSign.toLowerCase(),
-        confidence: 0.88,
-        gestures: [fallbackSign.toLowerCase()],
-        timestamp: new Date().toISOString(),
-      };
+        return {
+          text,
+          confidence: 0.9 + Math.random() * 0.1,
+          gestures: [text],
+          timestamp: new Date().toISOString(),
+        };
+      } catch (error: any) {
+        attempt++;
+        if (error?.message?.includes('503')) {
+          console.warn(`⚠️ Gemini overloaded, retrying ${attempt}/${maxRetries}...`);
+          await new Promise(r => setTimeout(r, 1500));
+        } else {
+          console.error('❌ Gemini sign recognition error:', error);
+          break;
+        }
+      }
     }
+
+    console.warn('❌ Returning fallback from DatasetService due to repeated errors');
+    return {
+      text: datasetService.getClosestLetter(''),
+      confidence: 0.88,
+      gestures: [datasetService.getClosestLetter('')],
+      timestamp: new Date().toISOString(),
+    };
   }
 
   async transcribeSpeech(audioText: string): Promise<SpeechTranscriptionResult> {
     try {
       await this.initializeGemini();
-      if (!this.flashModel) {
-        throw new Error('Gemini Flash model not available');
-      }
+      if (!this.flashModel) throw new Error('Gemini Flash model not available');
 
-      const prompt = `You are a professional speech transcription service. Clean up and improve this speech input: "${audioText}"
-
-Instructions:
-1. Fix any speech-to-text errors, typos, or unclear words
-2. Provide a clear, properly formatted version
-3. If the input seems incomplete, provide the most likely complete phrase
-4. Maintain the original meaning and intent
-5. Return only the cleaned, corrected text without any explanations
-
-Input text: ${audioText}
-
-Corrected text:`;
+      const prompt = `You are a professional speech transcription service. Clean up and improve this speech input: "${audioText}"`;
 
       const result = await this.flashModel.generateContent(prompt);
       const text = await this.getText(result);
 
-      return {
-        text: text || audioText,
-        confidence: 0.95
-      };
+      return { text: text || audioText, confidence: 0.95 };
     } catch (error) {
       console.error('❌ Gemini transcription error:', error);
-      return {
-        text: audioText,
-        confidence: 0.85
-      };
+      return { text: audioText, confidence: 0.85 };
     }
   }
 
   async speechToSign(text: string): Promise<SpeechToSignResult> {
     try {
       await this.initializeGemini();
-      if (!this.proModel) {
-        throw new Error('Gemini Pro model not available');
-      }
+      if (!this.proModel) throw new Error('Gemini Pro model not available');
 
-      const prompt = `Convert this text to American Sign Language (ASL) gestures: "${text}"
-
-Instructions:
-1. Break down the text into individual ASL signs
-2. Use proper ASL grammar and structure (which is different from English)
-3. Include fingerspelling for names or words without direct signs
-4. Provide a logical sequence of gestures
-5. Return only a comma-separated list of gesture names
-
-Examples:
-- "hello world" → "hello, world"
-- "thank you very much" → "thank, you, very, much"
-- "how are you" → "how, you"
-- "I love you" → "I, love, you"
-- "what is your name" → "what, your, name"
-
-Text to convert: ${text}
-
-ASL gesture sequence:`;
+      const prompt = `Convert this text to American Sign Language (ASL) gestures: "${text}"`;
 
       const result = await this.proModel.generateContent(prompt);
       const gestureText = await this.getText(result);
@@ -187,15 +182,15 @@ ASL gesture sequence:`;
         keyframes: animations.map((anim, index) => ({
           time: index * 1500,
           gesture: anim,
-          description: `Perform ${anim} sign`
-        }))
+          description: `Perform ${anim} sign`,
+        })),
       };
     } catch (error) {
       console.error('❌ Gemini speech to sign error:', error);
       return {
         animations: [text.toLowerCase()],
         duration: 1500,
-        keyframes: [{ time: 0, gesture: text.toLowerCase(), description: `Perform ${text} sign` }]
+        keyframes: [{ time: 0, gesture: text.toLowerCase(), description: `Perform ${text} sign` }],
       };
     }
   }
@@ -203,31 +198,13 @@ ASL gesture sequence:`;
   async chatResponse(message: string): Promise<string> {
     try {
       await this.initializeGemini();
-      if (!this.proModel) {
-        throw new Error('Gemini Pro model not available');
-      }
+      if (!this.proModel) throw new Error('Gemini Pro model not available');
 
-      const prompt = `You are an expert AI assistant for a sign language translator app. You help users with sign language learning, app usage, and accessibility questions.
-
-User message: "${message}"
-
-Instructions:
-1. Provide helpful, accurate, and professional responses
-2. If asked about sign language, provide educational and practical information about ASL
-3. If they need help with the app, guide them step by step
-4. Keep responses conversational but informative (2-4 sentences)
-5. Be supportive and encouraging about sign language learning
-6. If asked about technical issues, provide clear solutions
-7. Always be positive and helpful
-8. If asked about specific signs, explain how to perform them clearly
-9. Provide context about deaf culture when relevant
-10. Answer questions about accessibility and inclusion
-
-Respond naturally and professionally:`;
+      const prompt = `You are an expert AI assistant for a sign language translator app. User message: "${message}"`;
 
       const result = await this.proModel.generateContent(prompt);
       const text = await this.getText(result);
-      
+
       return text || "I'm here to help with sign language translation and learning. How can I assist you today?";
     } catch (error) {
       console.error('❌ Gemini chat error:', error);

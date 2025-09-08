@@ -9,10 +9,14 @@ class DatasetService {
    * Halkan waxaa loo adeegsadaa distance-ka ugu fudud (closest match)
    */
   getClosestLetter(input: string): string {
-    if (!input || !input.match(/[a-z]/i)) return 'a';
-    const char = input.toLowerCase()[0];
-    return this.aslLetters.includes(char) ? char : 'a';
+  if (!input || !input.match(/[a-z]/i)) {
+    // User-friendly fallback message
+    return "The letter is not clear. Please make sure your hand gesture is visible and try again.";
   }
+
+  const char = input.toLowerCase()[0];
+  return this.aslLetters.includes(char) ? char :
+         "The letter is not clear. Please make sure your hand gesture is visible and try again.";
 }
 
 export const datasetService = new DatasetService();

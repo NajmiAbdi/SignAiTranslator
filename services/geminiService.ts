@@ -257,6 +257,5 @@ Respond naturally and professionally:`;
     }
   }
 }
-}
 
 export const geminiService = new GeminiService();

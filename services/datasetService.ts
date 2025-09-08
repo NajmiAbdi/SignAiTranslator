@@ -186,6 +186,19 @@ class DatasetService {
   getLocalDataset(): DatasetEntry[] {
     return this.localDataset;
   }
+
+  async findSignForText(text: string): Promise<DatasetEntry | null> {
+    try {
+      const dataset = await this.loadDataset();
+      const match = dataset.find(
+        entry => entry.label.toLowerCase() === text.toLowerCase()
+      );
+      return match || null;
+    } catch (error) {
+      console.error('Error in findSignForText:', error);
+      return null;
+    }
+  }
 }
 
 export const datasetService = new DatasetService();
